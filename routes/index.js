@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 
 const Torres = require('../public/javascripts/torres')
-const torres = new Torres(4)
+const torres = new Torres()
 
 router.get('/', function (req, res) {
   res.send(torres.html())

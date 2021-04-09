@@ -1,10 +1,12 @@
 class Torres {
-  constructor (numPlayers, apPerRound = 5, numKnights = 5, height = 10, width = 10) {
+  constructor (numPlayers = 2, numRounds = 10, blocksPerRound = 3, apPerRound = 5, numKnights = 5, height = 10, width = 10) {
     this.height = height
     this.width = width
     this.numPlayers = numPlayers
     this.numKnights = numKnights
     this.apPerRound = apPerRound
+    this.numRounds = numRounds
+    this.blocksPerRound = blocksPerRound
 
     // generate board
     this.board = new Array(this.height)
