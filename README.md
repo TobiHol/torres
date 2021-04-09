@@ -2,9 +2,10 @@
 
 ## start server
 
-> npm install
-
-> node app.js
+```console
+npm install
+node app.js
+```
 
 ## Browser
 
@@ -13,8 +14,12 @@
 ## API
 
 ### GET
-get board state: 
-> curl localhost:3000/api
+get board state:
+```console
+curl localhost:3000/api
+```
 ### POST
 place block on position (x = 1, y = 2):
-> curl -H 'content-type: application/json' localhost:3000/api -d '{ "x" : 1, "y" : 2 }'
+```console
+curl -H 'content-type: application/json' localhost:3000/api -d '{ "x" : 1, "y" : 2 }'
+```
