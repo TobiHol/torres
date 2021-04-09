@@ -115,20 +115,30 @@ class Torres {
   }
 
   moveKnight (playerId, x, y, destX, destY) {
-    const square = this.getSquare(x, y)
+    const startSquare = this.getSquare(x, y)
     const destSquare = this.getSquare(destX, destY)
-    if (this.activePlayer !== playerId || !square || !destSquare) return false
+    if (this.activePlayer !== playerId || !startSquare || !destSquare) return false
 
     // check wether movement is illegal
-    if (square.knight !== playerId || destSquare.knight !== -1) return false // not correct knight or source not free
-    if (destSquare.height - square.height > 1) return false // only move at most one up
+    if (startSquare.knight !== playerId || destSquare.knight !== -1) return false // not correct knight or source not free
+    if (destSquare.height - startSquare.height > 1) return false // only move at most one up
     if ((Math.abs(x - destX) !== 1 || y !== destY) && (Math.abs(y - destY) !== 1 || x !== destX)) { // only move one
-      // TODO: movement throu castles
+      // movement through castles
+      if (destSquare.height > startSquare.height) return false // cannot move up through castle
+      const startNeighborIds = []
+      for (const n of this.getNeighbors(x, y)) {
+        if (n.castle !== -1 && n.height > startSquare.height) startNeighborIds.push(n.castle)
+      }
+      const destNeighborIds = []
+      for (const n of this.getNeighbors(destX, destY)) {
+        if (n.castle !== -1 && n.height > destSquare.height) destNeighborIds.push(n.castle)
+      }
+      if (!startNeighborIds.some(id => destNeighborIds.includes(id))) return false // not same castle as entrance and destination available
       return false
     }
 
     // execute movement
-    square.knight = -1
+    startSquare.knight = -1
     destSquare.knight = playerId
     return true
   }
