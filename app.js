@@ -15,9 +15,12 @@ app.use(logger('dev'))
 // app.use('/users', usersRouter)
 
 // init game
-const Torres = require('./public/javascripts/torres')
-const torres = new Torres()
 const numPlayers = 2
+const Torres = require('./public/javascripts/torres')
+const Player = require('./public/javascripts/player')
+const torres = new Torres()
+const player1 = new Player(torres, 0)
+const player2 = new Player(torres, 1)
 
 // express API
 app.get('/', function (req, res) {
@@ -28,10 +31,22 @@ app.get('/api', function (req, res) {
   res.send(torres.ascii())
 })
 
+// only used for testing
 app.post('/api', function (req, res) {
-  console.log('Received move : ' + JSON.stringify(req.body))
-  torres.placeBlock(req.body.x, req.body.y)
-  res.json(req.body)
+  let success = false
+  console.log('Received action : ' + JSON.stringify(req.body))
+  const player = req.body.player ? player2 : player1
+  if (req.body.action === 'block') {
+    success = player.placeBlock(req.body.x, req.body.y)
+  } else if (req.body.action === 'knight') {
+    success = player.placeKnight(req.body.x, req.body.y)
+  } else if (req.body.action === 'move') {
+    success = player.moveKnight(req.body.x, req.body.y, req.body.destX, req.body.destY)
+  } else if (req.body.action === 'end') {
+    success = player.endTurn()
+  } else { console.log('unknown action') }
+  console.log(success ? 'action performed' : 'action could not be performed')
+  res.send(torres.ascii())
 })
 
 // websocket API
@@ -42,22 +57,43 @@ wss.on('connection', (ws) => {
     return
   }
   if (wss.clients.size === numPlayers) {
-    wss.clients.forEach(function each (client) {
-      client.send('GAME START')
-    })
+    broadcast('GAME START')
   }
   ws.on('message', (data) => {
     console.log('received:', data)
-    const json = JSON.parse(data)
-    torres.placeBlock(json.x, json.y)
-    ws.send(data)
-    wss.clients.forEach(function each (client) {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(data)
-      }
-    })
+    let json = null
+    try {
+      json = JSON.parse(data)
+    } catch (error) {
+      broadcast('cant parse data')
+      return
+    }
+    let success = false
+    const player = json.player ? player2 : player1
+    if (json.action === 'block') {
+      success = player.placeBlock(json.x, json.y)
+    } else if (json.action === 'knight') {
+      success = player.placeKnight(json.x, json.y)
+    } else if (json.action === 'move') {
+      success = player.moveKnight(json.x, json.y, json.destX, json.destY)
+    } else if (json.action === 'end') {
+      success = player.endTurn()
+    } else { console.log('unknown action') }
+    // ws.send(data)
+    broadcast(success ? 'valid action' : 'invalid action')
+    broadcast(data)
+  })
+  ws.on('close', () => {
+    broadcast('GAME END')
   })
 })
+
+function broadcast (message) {
+  wss.clients.forEach(function each (client) {
+    // if (client.readyState === WebSocket.OPEN) {
+    client.send(message)
+  })
+}
 
 // create express server
 const server = app.listen(port, () => {
