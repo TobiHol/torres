@@ -14,7 +14,10 @@ app.use(logger('dev'))
 // app.use('/', indexRouter)
 // app.use('/users', usersRouter)
 
-// init game
+/*
+  game init
+*/
+
 const numPlayers = 2
 const Torres = require('./public/javascripts/torres')
 const Player = require('./public/javascripts/player')
@@ -22,7 +25,10 @@ const torres = new Torres()
 const player1 = new Player(torres, 0)
 const player2 = new Player(torres, 1)
 
-// express API
+/*
+  express API
+*/
+
 app.get('/', function (req, res) {
   res.send(torres.html())
 })
@@ -49,42 +55,66 @@ app.post('/api', function (req, res) {
   res.send(torres.ascii())
 })
 
-// websocket API
+/*
+  websocket API
+*/
+
+let GAME_ON = false
+const PLAYERS = new Array(numPlayers).fill(null)
+function getPlayerId (obj) {
+  return PLAYERS.findIndex((o) => o === obj)
+}
+
 wss.on('connection', (ws) => {
   if (wss.clients.size > numPlayers) {
     ws.send(`Already ${numPlayers} players connected.`)
     ws.close()
     return
   }
+  PLAYERS[getPlayerId(null)] = ws // assign client to player
+  broadcast(`Player ${getPlayerId(ws)} connected.`)
+  // start game
   if (wss.clients.size === numPlayers) {
     broadcast('GAME START')
+    GAME_ON = true
   }
   ws.on('message', (data) => {
     console.log('received:', data)
+    if (!GAME_ON) {
+      ws.send('Game has not started yet.')
+      return
+    }
     let json = null
     try {
       json = JSON.parse(data)
     } catch (error) {
-      broadcast('cant parse data')
+      ws.send('cant parse data')
       return
     }
-    let success = false
-    const player = json.player ? player2 : player1
+    let valid = false
+    const playerId = getPlayerId(ws)
+    const player = playerId ? player2 : player1
     if (json.action === 'block') {
-      success = player.placeBlock(json.x, json.y)
+      valid = player.placeBlock(json.x, json.y)
     } else if (json.action === 'knight') {
-      success = player.placeKnight(json.x, json.y)
+      valid = player.placeKnight(json.x, json.y)
     } else if (json.action === 'move') {
-      success = player.moveKnight(json.x, json.y, json.destX, json.destY)
+      valid = player.moveKnight(json.x, json.y, json.destX, json.destY)
     } else if (json.action === 'end') {
-      success = player.endTurn()
+      valid = player.endTurn()
     } else { console.log('unknown action') }
-    // ws.send(data)
-    broadcast(success ? 'valid action' : 'invalid action')
-    broadcast(data)
+    broadcast(valid ? 'VALID ACTION' : 'INVALID ACTION')
+    broadcast(`Player ${playerId}: ${data}`)
   })
   ws.on('close', () => {
-    broadcast('GAME END')
+    const playerId = getPlayerId(ws)
+    PLAYERS[playerId] = null // remove client form players
+    broadcast(`Player ${playerId} disconnected.`)
+    // end game
+    if (GAME_ON) {
+      broadcast('GAME END')
+      GAME_ON = false
+    }
   })
 })
 
@@ -94,6 +124,10 @@ function broadcast (message) {
     client.send(message)
   })
 }
+
+/*
+  server setup
+*/
 
 // create express server
 const server = app.listen(port, () => {
