@@ -134,7 +134,6 @@ class Torres {
         if (n.castle !== -1 && n.height > destSquare.height) destNeighborIds.push(n.castle)
       }
       if (!startNeighborIds.some(id => destNeighborIds.includes(id))) return false // not same castle as entrance and destination available
-      return false
     }
 
     // execute movement
