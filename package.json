@@ -17,7 +17,9 @@
   },
   "homepage": "https://github.com/TobiHol/torres#readme",
   "dependencies": {
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "morgan": "^1.10.0",
+    "ws": "^7.4.4"
   },
   "devDependencies": {
     "eslint": "^7.23.0",
