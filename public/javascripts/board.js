@@ -5,6 +5,7 @@ class Board {
     this.numCastles = numCastles
     this.castleSizes = new Array(numCastles)
 
+    this.startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60] // only for 8 castles, 8x8 board
     this.colors = ['black', 'red', 'blue', 'green', 'orange'] // TODO
 
     // generate board
@@ -19,10 +20,10 @@ class Board {
   initCastles (mode = 'standard') {
     if (mode === 'standard') {
       // TODO: extend for arbitrary boards
-      const placements = [3, 18, 21, 31, 32, 42, 45, 60] // only for 8 castles, 8x8 board
       for (let i = 0; i < this.numCastles; i++) {
-        this.board[placements[i]].castle = i
-        this.board[placements[i]].height = 1
+        const square = this.board[this.startingBlocks[i]]
+        square.castle = i
+        square.height = 1
       }
     } else if (mode === 'random') {
       // TODO
@@ -31,10 +32,15 @@ class Board {
     this.castleSizes.fill(1)
   }
 
-  initKnights () {
-    // TODO
-    this.board[31].knight = 0
-    this.board[42].knight = 1
+  initKnights (players) {
+    // random initialization
+    for (const p of players) {
+      let square = null
+      while (!square || square.knight !== -1) { // search for free starting castle
+        square = this.board[this.startingBlocks[Math.random() * this.numCastles]]
+      }
+      square.knight = p.id
+    }
   }
 
   getSquare (x, y) {

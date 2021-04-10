@@ -4,15 +4,24 @@ const Player = require('./player')
 class Torres {
   constructor (numPlayers = 2, numRounds = 10, blocksPerRound = 3, apPerRound = 5, numKnights = 5) {
     this.numRounds = numRounds
-
     this.numPlayers = numPlayers
-    this.Players = [...Array(numPlayers).keys()].map(id => new Player(id, numKnights, apPerRound, blocksPerRound))
+    this.numKnights = numKnights
+    this.apPerRound = apPerRound
+    this.blocksPerRound = blocksPerRound
+
+    this.resetGame(numKnights, apPerRound, blocksPerRound)
+  }
+
+  resetGame () {
+    this.Players = [...Array(this.numPlayers).keys()].map(id => new Player(id, this.numKnights, this.apPerRound, this.blocksPerRound))
     this.activePlayer = 0
 
     this.board = new Board()
-    // initialize game (TODO: by players?)
+  }
+
+  initGame () {
     this.board.initCastles()
-    this.board.initKnights()
+    this.board.initKnights(this.Players)
   }
 
   placeBlock (playerId, x, y) {
