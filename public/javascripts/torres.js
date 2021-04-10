@@ -17,7 +17,7 @@ class Torres {
     this._round = -1 // current round
     this._phase = -1 // current phase
 
-    if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a * b)) {
+    if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0)) {
       console.error("numRoundsPerPhase doesn't match dimension of blocksPerRound")
     }
     this.resetGame()
