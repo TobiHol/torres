@@ -112,28 +112,43 @@ class Torres {
 
     if (this._phase === 0 && !this._placedInitKnights[playerId]) return false
 
+    if (this._phase > 0) {
+      this._Players[playerId].endTurn()
+    }
+
     this._activePlayer = (this._activePlayer + 1) % this._numPlayers
     if (this._activePlayer === 0) { // end of round
       if (this._phase === 0 || this._round === this._numRoundsPerPhase[this._phase - 1]) { // end of phase
+        console.log('end phase')
         this.endPhase()
       } else {
         this._round++
       }
     }
 
-    if (this._round > 0) {
-      this._Players[playerId].endTurn()
-    }
-
     return true
   }
 
   endPhase () {
+    if (this._phase > 0) {
+      this.evaluateState()
+    }
     this._round = 1
     this._phase++
-    // TODO: evaluate board -> add points
     // TODO: change order of players
   }
+
+  evaluateState () {
+    const scorePerPlayer = new Array(this._numPlayers)
+    for (const p of this._Players) {
+      const score = this._board.evaluateBoard(p.id)
+      scorePerPlayer[p.id] = score
+      p.addPoints(score)
+    }
+    console.log(scorePerPlayer)
+  }
+
+  // TODO: method returning all legal moves
 
   ascii () {
     let str = 'Phase: ' + this._phase + '\n'

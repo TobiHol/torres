@@ -136,6 +136,20 @@ class Board {
     return true
   }
 
+  evaluateBoard (playerId) {
+    const knightPositions = this._board.filter(square => square.knight === playerId && square.castle >= 0)
+    // find highest knight per castle
+    const heightPerCastle = knightPositions.reduce((prev, square) => {
+      if (!(square.castle in prev) || prev[square.castle] < square.height) {
+        prev[square.castle] = square.height
+      }
+      return prev
+    }, {})
+    const score = Object.keys(heightPerCastle).reduce((prev, castleId) =>
+      prev + heightPerCastle[castleId] * this._castleSizes[castleId], 0)
+    return score
+  }
+
   ascii () {
     let str = ''
     for (let i = 0; i < this._board.length; i++) {
