@@ -14,14 +14,29 @@ class Player {
     this.points = 0
   }
 
+  canPlaceBlock () {
+    if (this.numBlocks < 1 || this.ap < 1) return false
+    return true
+  }
+
   placeBlock () {
     this.numBlocks--
     this.ap -= 1
   }
 
+  canPlaceKnight () {
+    if (this.numKnights < 1 || this.ap < 2) return false
+    return true
+  }
+
   placeKnight () {
     this.numKnights--
     this.ap -= 2
+  }
+
+  canMoveKnight () {
+    if (this.numKnights < 1 || this.ap < 2) return false
+    return true
   }
 
   moveKnight () {

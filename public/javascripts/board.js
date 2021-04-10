@@ -6,7 +6,7 @@ class Board {
     this.castleSizes = new Array(numCastles)
 
     this.startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60] // only for 8 castles, 8x8 board
-    this.colors = ['black', 'red', 'blue', 'green', 'orange'] // TODO
+    this.colors = ['black', 'red', 'blue', 'green', 'orange'] // TODO // black is default color
 
     // generate board
     this.board = new Array(this.height * this.width).fill().map(x => (
@@ -55,6 +55,27 @@ class Board {
     return neighbors.filter(x => x) // filter null
   }
 
+  canPlaceBlock (x, y) {
+    const square = this.getSquare(x, y)
+    if (!square) return false
+    if (square.knight !== -1) return false // square not free
+    let castleId = -1
+    if (square.height === 0) {
+      for (const n of this.getNeighbors(x, y)) {
+        if (n.castle !== -1) {
+          if (castleId !== -1 && castleId !== n.castle) return false // block would connect two castles
+          castleId = n.castle
+        }
+      }
+      if (castleId === -1) return false // block would create new castle
+    } else {
+      castleId = square.castle
+      if (this.castleSizes[castleId] < square.height + 1) return false // castle would be higher than base
+    }
+
+    return { square, castleId }
+  }
+
   placeBlock (square, castleId) {
     square.height += 1
     square.castle = castleId
@@ -63,8 +84,48 @@ class Board {
     }
   }
 
+  canPlaceKnight (x, y, playerId) {
+    const square = this.getSquare(x, y)
+    if (!square) return false
+    if (square.knight !== -1) return false // square not free
+    let neighborHeight = -1
+    for (const n of this.getNeighbors(x, y)) {
+      if (n.knight === playerId && n.height > neighborHeight) {
+        neighborHeight = n.height
+      }
+    }
+    if (neighborHeight === -1) return false // no knight of player as neighbor
+    if (neighborHeight < square.height) return false // knight can not be placed higher
+
+    return { square }
+  }
+
   placeKnight (square, playerId) {
     square.knight = playerId
+  }
+
+  canMoveKnight (x, y, destX, destY, playerId) {
+    const startSquare = this.getSquare(x, y)
+    const destSquare = this.getSquare(destX, destY)
+
+    if (!startSquare || !destSquare) return false
+    if (startSquare.knight !== playerId || destSquare.knight !== -1) return false // not correct knight or source not free
+    if (destSquare.height - startSquare.height > 1) return false // only move at most one up
+    if ((Math.abs(x - destX) !== 1 || y !== destY) && (Math.abs(y - destY) !== 1 || x !== destX)) { // only move one
+      // movement through castles
+      if (destSquare.height > startSquare.height) return false // cannot move up through castle
+      const startNeighborIds = []
+      for (const n of this.getNeighbors(x, y)) {
+        if (n.castle !== -1 && n.height > startSquare.height) startNeighborIds.push(n.castle)
+      }
+      const destNeighborIds = []
+      for (const n of this.getNeighbors(destX, destY)) {
+        if (n.castle !== -1 && n.height > destSquare.height) destNeighborIds.push(n.castle)
+      }
+      if (!startNeighborIds.some(id => destNeighborIds.includes(id))) return false // not same castle as entrance and destination available
+    }
+
+    return { startSquare, destSquare }
   }
 
   moveKnight (startSquare, destSquare, playerId) {

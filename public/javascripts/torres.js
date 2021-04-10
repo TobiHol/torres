@@ -17,111 +17,68 @@ class Torres {
     this.activePlayer = 0
 
     this.board = new Board()
+
+    return true
   }
 
   initGame () {
     this.board.initCastles()
     this.board.initKnights(this.Players)
+
+    return true
   }
 
   placeBlock (playerId, x, y) {
     if (this.activePlayer !== playerId) return false
-
-    // check wether player is unable to do action
     const player = this.Players[playerId]
-    if (this.numBlocks < 1 || this.ap < 1) return false
 
-    // check wether placement is illegal
-    const square = this.board.getSquare(x, y)
-    if (!square) return false
-    if (square.knight !== -1) return false // square not free
-    let castleId = -1
-    if (square.height === 0) {
-      for (const n of this.board.getNeighbors(x, y)) {
-        if (n.castle !== -1) {
-          if (castleId !== -1 && castleId !== n.castle) return false // block would connect two castles
-          castleId = n.castle
-        }
-      }
-      if (castleId === -1) return false // block would create new castle
-    } else {
-      castleId = square.castle
-      if (this.board.castleSizes[castleId] < square.height + 1) return false // castle would be higher than base
-    }
+    // check wether action is illegal
+    const placement = this.board.canPlaceBlock(x, y)
+    if (!placement || !player.canPlaceBlock()) return false
 
     // execute action
     player.placeBlock()
-    this.board.placeBlock(square, castleId)
+    this.board.placeBlock(placement.square, placement.castleId)
     return true
   }
 
   placeKnight (playerId, x, y) {
     if (this.activePlayer !== playerId) return false
-
-    // check wether player is unable to do action
     const player = this.Players[playerId]
-    if (player.numKnights < 1 || player.ap < 2) return false
 
-    // check wether placement is illegal
-    const square = this.board.getSquare(x, y)
-    if (!square) return false
-    if (square.knight !== -1) return false // square not free
-    let neighborHeight = -1
-    for (const n of this.board.getNeighbors(x, y)) {
-      if (n.knight === playerId && n.height > neighborHeight) {
-        neighborHeight = n.height
-      }
-    }
-    if (neighborHeight === -1) return false // no knight of player as neighbor
-    if (neighborHeight < square.height) return false // knight can not be placed higher
+    // check wether action is illegal
+    const placement = this.board.canPlaceKnight(x, y, playerId)
+    if (!placement || !player.canPlaceKnight()) return false
 
     // execute action
     player.placeKnight()
-    this.board.placeKnight(square, playerId)
+    this.board.placeKnight(placement.square, playerId)
 
     return true
   }
 
   moveKnight (playerId, x, y, destX, destY) {
     if (this.activePlayer !== playerId) return false
-
-    // check wether player is unable to do action
     const player = this.Players[playerId]
-    if (player.numKnights < 1 || player.ap < 2) return false
 
-    // check wether movement is illegal
-    const startSquare = this.board.getSquare(x, y)
-    const destSquare = this.board.getSquare(destX, destY)
-    if (!startSquare || !destSquare) return false
-    if (startSquare.knight !== playerId || destSquare.knight !== -1) return false // not correct knight or source not free
-    if (destSquare.height - startSquare.height > 1) return false // only move at most one up
-    if ((Math.abs(x - destX) !== 1 || y !== destY) && (Math.abs(y - destY) !== 1 || x !== destX)) { // only move one
-      // movement through castles
-      if (destSquare.height > startSquare.height) return false // cannot move up through castle
-      const startNeighborIds = []
-      for (const n of this.board.getNeighbors(x, y)) {
-        if (n.castle !== -1 && n.height > startSquare.height) startNeighborIds.push(n.castle)
-      }
-      const destNeighborIds = []
-      for (const n of this.board.getNeighbors(destX, destY)) {
-        if (n.castle !== -1 && n.height > destSquare.height) destNeighborIds.push(n.castle)
-      }
-      if (!startNeighborIds.some(id => destNeighborIds.includes(id))) return false // not same castle as entrance and destination available
-    }
+    // check wether action is illegal
+    const movement = this.board.canMoveKnight(x, y, destX, destY, playerId)
+    if (!movement || !player.canMoveKnight()) return false
 
     // execute action
     player.moveKnight()
-    this.board.moveKnight(startSquare, destSquare, playerId)
+    this.board.moveKnight(movement.startSquare, movement.destSquare, playerId)
 
     return true
   }
 
   endTurn (playerId) {
     if (this.activePlayer !== playerId) return false
+
     this.activePlayer = (this.activePlayer + 1) % this.numPlayers
     if (this.activePlayer === 0) this.numRounds-- // end of round
-    const player = this.Players[playerId]
-    player.endTurn()
+    this.Players[playerId].endTurn()
+
     return true
   }
 
