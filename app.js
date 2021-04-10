@@ -38,7 +38,11 @@ app.get('/api', function (req, res) {
 app.post('/api', function (req, res) {
   let success = false
   console.log('Received action : ' + JSON.stringify(req.body))
-  if (req.body.action === 'block') {
+  if (req.body.action === 'init') {
+    success = torres.initGame()
+  } else if (req.body.action === 'reset') {
+    success = torres.resetGame()
+  } else if (req.body.action === 'block') {
     success = torres.placeBlock(req.body.player, req.body.x, req.body.y)
   } else if (req.body.action === 'knight') {
     success = torres.placeKnight(req.body.player, req.body.x, req.body.y)
@@ -63,55 +67,117 @@ function getPlayerId (obj) {
 
 wss.on('connection', (ws) => {
   if (wss.clients.size > numPlayers) {
-    ws.send(`Already ${numPlayers} players connected.`)
+    ws.send(JSON.stringify({
+      type: 'error',
+      data: {
+        message: `Already ${numPlayers} players connected.`
+      }
+    }))
     ws.close()
     return
   }
   PLAYERS[getPlayerId(null)] = ws // assign client to player
-  broadcast(`Player ${getPlayerId(ws)} connected.`)
+  // broadcast(`Player ${getPlayerId(ws)} connected.`)
   // start game
   if (wss.clients.size === numPlayers) {
-    broadcast('GAME START')
+    torres.initGame()
     GAME_ON = true
+    wss.clients.forEach(function each (client) {
+      client.send(JSON.stringify({
+        type: 'game_start',
+        data: {
+          your_player_id: getPlayerId(client)
+        }
+      }))
+    })
   }
   ws.on('message', (data) => {
     console.log('received:', data)
-    if (!GAME_ON) {
-      ws.send('Game has not started yet.')
-      return
-    }
     let json = null
     try {
       json = JSON.parse(data)
     } catch (error) {
-      ws.send('cant parse data')
+      ws.send(JSON.stringify({
+        type: 'error',
+        data: {
+          message: `The send data could not be parsed to JSON. \n Data: ${data}`
+        }
+      }))
       return
     }
-    let valid = false
-    const playerId = getPlayerId(ws)
-    if (json.action === 'block') {
-      valid = torres.placeBlock(playerId, json.x, json.y)
-    } else if (json.action === 'knight') {
-      valid = torres.placeKnight(playerId, json.x, json.y)
-    } else if (json.action === 'move') {
-      valid = torres.moveKnight(playerId, json.x, json.y, json.destX, json.destY)
-    } else if (json.action === 'end') {
-      valid = torres.endTurn(playerId)
-    } else { console.log('unknown action') }
-    if (valid) {
-      broadcast(`Player ${playerId}: ${data}`)
-    } else {
-      ws.send(`ILLEGAL MOVE: Player ${playerId}: ${data}`)
+    switch (json.type) {
+      case 'move':
+        onMove()
+        break
+      case 'request':
+        onRequest()
+        break
+      default:
+        break
+    }
+    function onMove () {
+      if (!GAME_ON) {
+        ws.send(JSON.stringify({
+          type: 'error',
+          data: {
+            message: 'The game has not started yet.'
+          }
+        }))
+        return
+      }
+      let valid = false
+      const playerId = getPlayerId(ws)
+      const move = json.data
+      switch (move.action) {
+        case 'block_place':
+          valid = torres.placeBlock(playerId, move.x, move.y)
+          break
+        case 'knight_place':
+          valid = torres.placeKnight(playerId, move.x, move.y)
+          break
+        case 'knight_move':
+          valid = torres.moveKnight(playerId, move.x, move.y, move.destX, move.destY)
+          break
+        case 'turn_end':
+          valid = torres.endTurn(playerId)
+          break
+        default:
+          break
+      }
+      ws.send(JSON.stringify({
+        type: 'move_response',
+        data: {
+          valid: valid
+        }
+      }))
+      if (valid) {
+        broadcast(JSON.stringify({
+          type: 'move_update',
+          data: {
+            player: playerId,
+            ...json.data
+          }
+        }))
+      }
+    }
+    function onRequest () {
+      // TODO
     }
   })
   ws.on('close', () => {
+    torres.resetGame()
     const playerId = getPlayerId(ws)
     PLAYERS[playerId] = null // remove client form players
-    broadcast(`Player ${playerId} disconnected.`)
+    // broadcast(`Player ${playerId} disconnected.`)
     // end game
     if (GAME_ON) {
-      broadcast('GAME END')
       GAME_ON = false
+      broadcast(JSON.stringify({
+        type: 'game_end',
+        data: {
+          winner: null
+        }
+      }))
     }
   })
 })
