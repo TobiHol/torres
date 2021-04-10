@@ -5,10 +5,11 @@ class Player {
     this.numKnights = numKnights
     this.apPerRound = apPerRound
     this.blocksPerRound = blocksPerRound
+    this.blockIdx = 0
 
     // turn based variables
     this.ap = apPerRound
-    this.numBlocks = blocksPerRound
+    this.numBlocks = blocksPerRound[this.blockIdx]
 
     // TODO: keep track of points?
     this.points = 0
@@ -35,7 +36,7 @@ class Player {
   }
 
   canMoveKnight () {
-    if (this.numKnights < 1 || this.ap < 2) return false
+    if (this.ap < 1) return false
     return true
   }
 
@@ -46,15 +47,26 @@ class Player {
   endTurn () {
     this.points += this.ap // extra ap is automatically converted to points
     this.ap = this.apPerRound
-    this.numBlocks = this.blocksPerRound
+    this.blockIdx++
+    this.numBlocks = this.blocksPerRound[this.blockIdx]
   }
 
-  ascii () {
-    return 'player: ' + this.id + '\tknights: ' + this.numKnights + '\tAP: ' + this.ap + '\tblocks: ' + this.numBlocks + '\n'
+  ascii (phase) {
+    let str = 'ID: ' + this.id
+    if (phase > 0) {
+      str += '\tAP: ' + this.ap + '\tKnights: ' + this.numKnights + '\tBlocks: ' + this.numBlocks
+    }
+    str += '\n'
+    return str
   }
 
-  html () {
-    return 'player: ' + this.id + '&emsp; knights: ' + this.numKnights + '&emsp; AP: ' + this.ap + '&emsp; blocks: ' + this.numBlocks + '<br/>'
+  html (phase) {
+    let str = 'ID: ' + this.id
+    if (phase > 0) {
+      str += '&emsp; AP: ' + this.ap + '&emsp; Knights: ' + this.numKnights + '&emsp; Blocks: ' + this.numBlocks
+    }
+    str += '<br/>'
+    return str
   }
 }
 

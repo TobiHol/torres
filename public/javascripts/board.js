@@ -17,16 +17,12 @@ class Board {
       }))
   }
 
-  initCastles (mode = 'standard') {
-    if (mode === 'standard') {
-      // TODO: extend for arbitrary boards
-      for (let i = 0; i < this.numCastles; i++) {
-        const square = this.board[this.startingBlocks[i]]
-        square.castle = i
-        square.height = 1
-      }
-    } else if (mode === 'random') {
-      // TODO
+  initCastles () {
+    // TODO: extend for arbitrary boards
+    for (let i = 0; i < this.numCastles; i++) {
+      const square = this.board[this.startingBlocks[i]]
+      square.castle = i
+      square.height = 1
     }
 
     this.castleSizes.fill(1)
@@ -85,18 +81,23 @@ class Board {
     }
   }
 
-  canPlaceKnight (x, y, playerId) {
+  canPlaceKnight (x, y, playerId, init = false) {
     const square = this.getSquare(x, y)
     if (!square) return false
     if (square.knight !== -1) return false // square not free
-    let neighborHeight = -1
-    for (const n of this.getNeighbors(x, y)) {
-      if (n.knight === playerId && n.height > neighborHeight) {
-        neighborHeight = n.height
+
+    if (init) {
+      if (square.height !== 1) return false
+    } else {
+      let neighborHeight = -1
+      for (const n of this.getNeighbors(x, y)) {
+        if (n.knight === playerId && n.height > neighborHeight) {
+          neighborHeight = n.height
+        }
       }
+      if (neighborHeight === -1) return false // no knight of player as neighbor
+      if (neighborHeight < square.height) return false // knight can not be placed higher
     }
-    if (neighborHeight === -1) return false // no knight of player as neighbor
-    if (neighborHeight < square.height) return false // knight can not be placed higher
 
     return { square }
   }
