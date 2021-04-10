@@ -19,6 +19,16 @@ get board state:
 curl localhost:3000/api
 ```
 ### POST
+initialize game 
+```
+curl -H 'content-type: application/json' localhost:3000/api -d '{ "player" : 0, "action" : "init"}'
+```
+
+reset game
+```
+curl -H 'content-type: application/json' localhost:3000/api -d '{ "player" : 0, "action" : "reset"}'
+```
+
 player 0 place block on position (x = 1, y = 2):
 ```
 curl -H 'content-type: application/json' localhost:3000/api -d '{ "player" : 0, "action" : "block", "x" : 1, "y" : 2 }'

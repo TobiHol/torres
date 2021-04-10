@@ -16,7 +16,11 @@ router.get('/api', function (req, res) {
 router.post('/api', function (req, res) {
   let success = false
   console.log('Received action : ' + JSON.stringify(req.body))
-  if (req.body.action === 'block') {
+  if (req.body.action === 'init') {
+    success = torres.initGame()
+  } else if (req.body.action === 'reset') {
+    success = torres.resetGame()
+  } else if (req.body.action === 'block') {
     success = torres.placeBlock(req.body.player, req.body.x, req.body.y)
   } else if (req.body.action === 'knight') {
     success = torres.placeKnight(req.body.player, req.body.x, req.body.y)
