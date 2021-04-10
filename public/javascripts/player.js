@@ -1,60 +1,83 @@
 class Player {
   constructor (id, numKnights, apPerRound, blocksPerRound) {
-    this.id = id
+    this._id = id
 
-    this.numKnights = numKnights
+    // TODO: don't store here?
+    this._numKnights = numKnights
+
     this.apPerRound = apPerRound
     this.blocksPerRound = blocksPerRound
 
-    // turn based variables
-    this.ap = apPerRound
-    this.numBlocks = blocksPerRound
+    this._absRound = 0
 
-    // TODO: keep track of points?
-    this.points = 0
+    // turn based variables
+    this._ap = apPerRound
+    this._numBlocks = blocksPerRound[this._absRound]
+
+    // TODO: keep track of points
+    this._points = 0
+  }
+
+  get id () {
+    return this._id
+  }
+
+  addPoints (points) {
+    this._points += points
   }
 
   canPlaceBlock () {
-    if (this.numBlocks < 1 || this.ap < 1) return false
+    if (this._numBlocks < 1 || this._ap < 1) return false
     return true
   }
 
   placeBlock () {
-    this.numBlocks--
-    this.ap -= 1
+    this._numBlocks--
+    this._ap -= 1
   }
 
   canPlaceKnight () {
-    if (this.numKnights < 1 || this.ap < 2) return false
+    if (this._numKnights < 1 || this._ap < 2) return false
     return true
   }
 
   placeKnight () {
-    this.numKnights--
-    this.ap -= 2
+    this._numKnights--
+    this._ap -= 2
   }
 
   canMoveKnight () {
-    if (this.numKnights < 1 || this.ap < 2) return false
+    if (this._ap < 1) return false
     return true
   }
 
   moveKnight () {
-    this.ap -= 1
+    this._ap -= 1
   }
 
   endTurn () {
-    this.points += this.ap // extra ap is automatically converted to points
-    this.ap = this.apPerRound
-    this.numBlocks = this.blocksPerRound
+    this._points += this._ap // extra ap is automatically converted to points
+    this._ap = this.apPerRound
+    this._absRound++
+    this._numBlocks = this.blocksPerRound[this._absRound]
   }
 
-  ascii () {
-    return 'player: ' + this.id + '\tknights: ' + this.numKnights + '\tAP: ' + this.ap + '\tblocks: ' + this.numBlocks + '\n'
+  ascii (phase) {
+    let str = 'ID: ' + this._id + '\tPoints: ' + this._points
+    if (phase > 0) {
+      str += '\tAP: ' + this._ap + '\tKnights: ' + this._numKnights + '\tBlocks: ' + this._numBlocks
+    }
+    str += '\n'
+    return str
   }
 
-  html () {
-    return 'player: ' + this.id + '&emsp; knights: ' + this.numKnights + '&emsp; AP: ' + this.ap + '&emsp; blocks: ' + this.numBlocks + '<br/>'
+  html (phase) {
+    let str = 'ID: ' + this._id + '&emsp; Points: ' + this._points
+    if (phase > 0) {
+      str += '&emsp; AP: ' + this._ap + '&emsp; Knights: ' + this._numKnights + '&emsp; Blocks: ' + this._numBlocks
+    }
+    str += '<br/>'
+    return str
   }
 }
 

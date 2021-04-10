@@ -1,15 +1,15 @@
 class Board {
   constructor (height = 8, width = 8, numCastles = 8) {
-    this.height = height
-    this.width = width
-    this.numCastles = numCastles
-    this.castleSizes = new Array(numCastles)
+    this._height = height
+    this._width = width
+    this._numCastles = numCastles
+    this._castleSizes = new Array(numCastles)
 
-    this.startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60] // only for 8 castles, 8x8 board
-    this.colors = ['black', 'red', 'blue', 'green', 'orange'] // TODO // black is default color
+    this._startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60] // only for 8 castles, 8x8 board
+    this._colors = ['black', 'red', 'blue', 'green', 'orange'] // TODO // black is default color
 
     // generate board
-    this.board = new Array(this.height * this.width).fill().map(x => (
+    this._board = new Array(this._height * this._width).fill().map(x => (
       {
         castle: -1, // id of castle or -1
         height: 0,
@@ -17,19 +17,23 @@ class Board {
       }))
   }
 
-  initCastles (mode = 'standard') {
-    if (mode === 'standard') {
-      // TODO: extend for arbitrary boards
-      for (let i = 0; i < this.numCastles; i++) {
-        const square = this.board[this.startingBlocks[i]]
-        square.castle = i
-        square.height = 1
-      }
-    } else if (mode === 'random') {
-      // TODO
+  get height () {
+    return this._height
+  }
+
+  get width () {
+    return this._width
+  }
+
+  initCastles () {
+    // TODO: extend for arbitrary boards
+    for (let i = 0; i < this._numCastles; i++) {
+      const square = this._board[this._startingBlocks[i]]
+      square.castle = i
+      square.height = 1
     }
 
-    this.castleSizes.fill(1)
+    this._castleSizes.fill(1)
   }
 
   initKnights (players) {
@@ -37,18 +41,18 @@ class Board {
     for (const p of players) {
       let square = null
       while (!square || square.knight !== -1) { // search for free starting castle
-        const rand = Math.round(Math.random() * this.numCastles)
-        square = this.board[this.startingBlocks[rand]]
+        const rand = Math.round(Math.random() * this._numCastles)
+        square = this._board[this._startingBlocks[rand]]
       }
       square.knight = p.id
     }
   }
 
   getSquare (x, y) {
-    if (x < 0 || y < 0 || x >= this.width || y >= this.height) {
+    if (x < 0 || y < 0 || x >= this._width || y >= this._height) {
       return null
     }
-    return this.board[y * this.width + x]
+    return this._board[y * this._width + x]
   }
 
   getNeighbors (x, y) {
@@ -71,7 +75,7 @@ class Board {
       if (castleId === -1) return false // block would create new castle
     } else {
       castleId = square.castle
-      if (this.castleSizes[castleId] < square.height + 1) return false // castle would be higher than base
+      if (this._castleSizes[castleId] < square.height + 1) return false // castle would be higher than base
     }
 
     return { square, castleId }
@@ -81,22 +85,27 @@ class Board {
     square.height += 1
     square.castle = castleId
     if (square.height === 1) {
-      this.castleSizes[castleId] += 1
+      this._castleSizes[castleId] += 1
     }
   }
 
-  canPlaceKnight (x, y, playerId) {
+  canPlaceKnight (x, y, playerId, init = false) {
     const square = this.getSquare(x, y)
     if (!square) return false
     if (square.knight !== -1) return false // square not free
-    let neighborHeight = -1
-    for (const n of this.getNeighbors(x, y)) {
-      if (n.knight === playerId && n.height > neighborHeight) {
-        neighborHeight = n.height
+
+    if (init) {
+      if (square.height !== 1) return false
+    } else {
+      let neighborHeight = -1
+      for (const n of this.getNeighbors(x, y)) {
+        if (n.knight === playerId && n.height > neighborHeight) {
+          neighborHeight = n.height
+        }
       }
+      if (neighborHeight === -1) return false // no knight of player as neighbor
+      if (neighborHeight < square.height) return false // knight can not be placed higher
     }
-    if (neighborHeight === -1) return false // no knight of player as neighbor
-    if (neighborHeight < square.height) return false // knight can not be placed higher
 
     return { square }
   }
@@ -135,11 +144,25 @@ class Board {
     return true
   }
 
+  evaluateBoard (playerId) {
+    const knightPositions = this._board.filter(square => square.knight === playerId && square.castle >= 0)
+    // find highest knight per castle
+    const heightPerCastle = knightPositions.reduce((prev, square) => {
+      if (!(square.castle in prev) || prev[square.castle] < square.height) {
+        prev[square.castle] = square.height
+      }
+      return prev
+    }, {})
+    const score = Object.keys(heightPerCastle).reduce((prev, castleId) =>
+      prev + heightPerCastle[castleId] * this._castleSizes[castleId], 0)
+    return score
+  }
+
   ascii () {
     let str = ''
-    for (let i = 0; i < this.board.length; i++) {
-      str += '(' + this.board[i].castle + ',' + this.board[i].height + ',' + this.board[i].knight + ')  \t'
-      if (i % this.width === this.width - 1) {
+    for (let i = 0; i < this._board.length; i++) {
+      str += '(' + this._board[i].castle + ',' + this._board[i].height + ',' + this._board[i].knight + ')  \t'
+      if (i % this._width === this._width - 1) {
         str += '\n'
       }
     }
@@ -148,16 +171,16 @@ class Board {
 
   html () {
     let str = '<table width="300" height="300" border="2">'
-    for (let i = 0; i < this.board.length; i++) {
-      if (i % this.width === 0) str += '<tr>'
-      const square = this.board[i]
+    for (let i = 0; i < this._board.length; i++) {
+      if (i % this._width === 0) str += '<tr>'
+      const square = this._board[i]
       str += '<td align="center" style="background-color: ' + (square.height === 0
         ? 'white'
         : 'grey') +
         '; color: ' +
-         this.colors[square.knight + 1] +
+         this._colors[square.knight + 1] +
         '">' + square.height + '</td>'
-      if (i % this.width === this.width - 1) str += '</tr>'
+      if (i % this._width === this._width - 1) str += '</tr>'
     }
     str += '</table>'
     return str
