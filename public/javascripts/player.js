@@ -1,52 +1,45 @@
 class Player {
-  constructor (game, id, numKnights = 5, ap = 5, numBlocks = 3) {
-    this.game = game
+  constructor (id, numKnights, apPerRound, blocksPerRound) {
     this.id = id
-    game.addPlayer()
 
     this.numKnights = numKnights
-    this.apPerTurn = ap
-    this.numBlocksperTurn = numBlocks
+    this.apPerRound = apPerRound
+    this.blocksPerRound = blocksPerRound
 
-    // turn based varriables
-    this.ap = ap
-    this.numBlocks = numBlocks
+    // turn based variables
+    this.ap = apPerRound
+    this.numBlocks = blocksPerRound
 
     // TODO: keep track of points?
     this.points = 0
   }
 
-  placeBlock (x, y) {
-    if (this.numBlocks > 0 && this.ap >= 1 && this.game.placeBlock(this.id, x, y)) {
-      this.numBlocks--
-      this.ap -= 1
-      return true
-    }
-    return false
+  placeBlock () {
+    this.numBlocks--
+    this.ap -= 1
   }
 
-  placeKnight (x, y) {
-    if (this.numKnights > 0 && this.ap >= 2 && this.game.placeKnight(this.id, x, y)) {
-      this.numKnights--
-      this.ap -= 2
-      return true
-    }
-    return false
+  placeKnight () {
+    this.numKnights--
+    this.ap -= 2
   }
 
-  moveKnight (x, y, destX, destY) {
-    if (this.ap >= 1 && this.game.moveKnight(this.id, x, y, destX, destY)) {
-      this.ap -= 1
-      return true
-    }
-    return false
+  moveKnight () {
+    this.ap -= 1
   }
 
   endTurn () {
     this.points += this.ap // extra ap is automatically converted to points
-    this.ap = this.apPerTurn
-    this.numBlocks = this.numBlocksperTurn
-    return this.game.endTurn(this.id)
+    this.ap = this.apPerRound
+    this.numBlocks = this.blocksPerRound
+  }
+
+  ascii () {
+    return 'player: ' + this.id + '\tknights: ' + this.numKnights + '\tAP: ' + this.ap + '\tblocks: ' + this.numBlocks + '\n'
+  }
+
+  html () {
+    return 'player: ' + this.id + '&emsp; knights: ' + this.numKnights + '&emsp; AP: ' + this.ap + '&emsp; blocks: ' + this.numBlocks + '<br/>'
   }
 }
 
