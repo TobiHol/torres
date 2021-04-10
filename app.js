@@ -20,10 +20,7 @@ app.use(logger('dev'))
 
 const numPlayers = 2
 const Torres = require('./public/javascripts/torres')
-const Player = require('./public/javascripts/player')
 const torres = new Torres()
-const player1 = new Player(torres, 0)
-const player2 = new Player(torres, 1)
 
 /*
   express API
@@ -41,15 +38,14 @@ app.get('/api', function (req, res) {
 app.post('/api', function (req, res) {
   let success = false
   console.log('Received action : ' + JSON.stringify(req.body))
-  const player = req.body.player ? player2 : player1
   if (req.body.action === 'block') {
-    success = player.placeBlock(req.body.x, req.body.y)
+    success = torres.placeBlock(req.body.player, req.body.x, req.body.y)
   } else if (req.body.action === 'knight') {
-    success = player.placeKnight(req.body.x, req.body.y)
+    success = torres.placeKnight(req.body.player, req.body.x, req.body.y)
   } else if (req.body.action === 'move') {
-    success = player.moveKnight(req.body.x, req.body.y, req.body.destX, req.body.destY)
+    success = torres.moveKnight(req.body.player, req.body.x, req.body.y, req.body.destX, req.body.destY)
   } else if (req.body.action === 'end') {
-    success = player.endTurn()
+    success = torres.endTurn(req.body.player)
   } else { console.log('unknown action') }
   console.log(success ? 'action performed' : 'action could not be performed')
   res.send(torres.ascii())
@@ -93,18 +89,20 @@ wss.on('connection', (ws) => {
     }
     let valid = false
     const playerId = getPlayerId(ws)
-    const player = playerId ? player2 : player1
     if (json.action === 'block') {
-      valid = player.placeBlock(json.x, json.y)
+      valid = torres.placeBlock(playerId, json.x, json.y)
     } else if (json.action === 'knight') {
-      valid = player.placeKnight(json.x, json.y)
+      valid = torres.placeKnight(playerId, json.x, json.y)
     } else if (json.action === 'move') {
-      valid = player.moveKnight(json.x, json.y, json.destX, json.destY)
+      valid = torres.moveKnight(playerId, json.x, json.y, json.destX, json.destY)
     } else if (json.action === 'end') {
-      valid = player.endTurn()
+      valid = torres.endTurn(playerId)
     } else { console.log('unknown action') }
-    broadcast(valid ? 'VALID ACTION' : 'INVALID ACTION')
-    broadcast(`Player ${playerId}: ${data}`)
+    if (valid) {
+      broadcast(`Player ${playerId}: ${data}`)
+    } else {
+      ws.send(`ILLEGAL MOVE: Player ${playerId}: ${data}`)
+    }
   })
   ws.on('close', () => {
     const playerId = getPlayerId(ws)
