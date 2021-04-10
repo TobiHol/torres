@@ -9,21 +9,24 @@ class Torres {
     this.apPerRound = apPerRound
     this.blocksPerRound = blocksPerRound
 
-    this.resetGame(numKnights, apPerRound, blocksPerRound)
+    this.resetGame()
   }
 
   resetGame () {
     this.Players = [...Array(this.numPlayers).keys()].map(id => new Player(id, this.numKnights, this.apPerRound, this.blocksPerRound))
     this.activePlayer = 0
-
     this.board = new Board()
+    this.initialized = false
 
     return true
   }
 
   initGame () {
+    if (this.initialized) return false
+
     this.board.initCastles()
     this.board.initKnights(this.Players)
+    this.initialized = true
 
     return true
   }
