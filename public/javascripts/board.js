@@ -17,6 +17,14 @@ class Board {
       }))
   }
 
+  get height () {
+    return this._height
+  }
+
+  get width () {
+    return this._width
+  }
+
   initCastles () {
     // TODO: extend for arbitrary boards
     for (let i = 0; i < this._numCastles; i++) {

@@ -148,7 +148,32 @@ class Torres {
     console.log(scorePerPlayer)
   }
 
-  // TODO: method returning all legal moves
+  getLegalMoves (playerId) {
+    const legalMoves = []
+    if (this._activePlayer !== -1 && this._Players[this._activePlayer].id === playerId) {
+      if (this._phase > 0) {
+        legalMoves.push({ action: 'turn_end' })
+      }
+      for (let x = 0; x < this._board.width; x++) {
+        for (let y = 0; y < this._board.height; y++) {
+          if (this._phase > 0 && this._board.canPlaceBlock(x, y)) {
+            legalMoves.push({ action: 'block_place', x, y })
+          }
+          if (this._board.canPlaceKnight(x, y, playerId, this._phase === 0)) {
+            legalMoves.push({ action: 'knight_place', x, y })
+          }
+          for (let destX = 0; destX < this._board.width; destX++) {
+            for (let destY = 0; destY < this._board.height; destY++) {
+              if (this._phase > 0 && this._board.canMoveKnight(x, y, destX, destY, playerId)) {
+                legalMoves.push({ action: 'knight_move', x, y, destX, destY })
+              }
+            }
+          }
+        }
+      }
+    }
+    return legalMoves
+  }
 
   ascii () {
     let str = 'Phase: ' + this._phase + '\n'
