@@ -21,12 +21,12 @@ curl localhost:3000/api
 ### POST
 initialize game 
 ```
-curl -H 'content-type: application/json' localhost:3000/api -d '{ "player" : 0, "action" : "init"}'
+curl -H 'content-type: application/json' localhost:3000/api -d '{"action" : "init"}'
 ```
 
 reset game
 ```
-curl -H 'content-type: application/json' localhost:3000/api -d '{ "player" : 0, "action" : "reset"}'
+curl -H 'content-type: application/json' localhost:3000/api -d '{"action" : "reset"}'
 ```
 
 player 0 place block on position (x = 1, y = 2):
@@ -48,4 +48,84 @@ curl -H 'content-type: application/json' localhost:3000/api -d '{ "player" : 1, 
 player 1 end turn:
 ```
 curl -H 'content-type: application/json' localhost:3000/api -d '{ "player" : 1, "action" : "end" }'
+```
+
+## WEBSOCKET
+
+### Move 
+
+client send move:
+```
+{
+  "type" : "move",
+  "data": {
+    "action": "block_place",
+    "x": 1,
+    "y": 2
+  }
+}
+```
+data options: 
+* {"action": "block_place", "x": 1, "y": 2}
+* {"action": "knight_place", "x": 1, "y": 2}
+* {"action": "knight_move", "x": 1, "y": 2, "destX": 1, "destY": 3}
+* {"action": "turn_end"}
+ 
+
+server response:
+```
+{
+  "type" : "move_response",
+  "data": {
+    "valid": true 
+  }
+}
+```
+
+server broadcast if move was valid and server updated game:
+```
+{
+  "type" : "move_update",
+  "data": {
+    "player": 0,
+    "action": "block",
+    "x": 1,
+    "y": 2
+  }
+}
+```
+
+### Status request
+
+not implemented
+
+### Game start/end 
+server start game
+```
+{
+  "type": "game_start",
+  "data": {
+    "your_player_id" : getPlayerId(client)
+  }
+}
+```
+server end game 
+```
+{
+  "type": "game_end",
+  "data": {
+    "winner" : 1
+  }
+}
+```
+
+### Error
+server response on error
+```
+{
+  "type": "error",
+  "data": {
+    "message": "some message"
+  }
+}
 ```
