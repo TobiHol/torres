@@ -14,12 +14,15 @@ class Player {
     this._ap = apPerRound
     this._numBlocks = blocksPerRound[this._absRound]
 
-    // TODO: keep track of points
     this._points = 0
   }
 
   get id () {
     return this._id
+  }
+
+  get points () {
+    return this._points
   }
 
   addPoints (points) {
@@ -57,6 +60,10 @@ class Player {
 
   endTurn () {
     this._points += this._ap // extra ap is automatically converted to points
+    this._ap = 0
+  }
+
+  endRound () {
     this._ap = this.apPerRound
     this._absRound++
     this._numBlocks = this.blocksPerRound[this._absRound]
