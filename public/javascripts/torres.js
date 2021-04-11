@@ -267,7 +267,7 @@ class Torres {
 
   getLegalMoves (playerId) {
     const legalMoves = []
-    if (this.gameRunning && this._activePlayer !== -1 && this._activePlayer === playerId) {
+    if (this.gameRunning && this._activePlayer === playerId) {
       const player = this._Players[playerId]
       if (this._phase > 0) {
         legalMoves.push({ action: 'turn_end' })
@@ -280,10 +280,13 @@ class Torres {
           if (player.canPlaceKnight() && this._board.canPlaceKnight(x, y, playerId, this._phase === 0)) {
             legalMoves.push({ action: 'knight_place', x, y })
           }
-          for (let destX = 0; destX < this._board.width; destX++) {
-            for (let destY = 0; destY < this._board.height; destY++) {
-              if (this._phase > 0 && player.canMoveKnight() && this._board.canMoveKnight(x, y, destX, destY, playerId)) {
-                legalMoves.push({ action: 'knight_move', x, y, destX, destY })
+          if (this._phase > 0 && this._board.getSquare(x, y).knight === playerId && player.canMoveKnight()) {
+            // find destinations for knight
+            for (let destX = 0; destX < this._board.width; destX++) {
+              for (let destY = 0; destY < this._board.height; destY++) {
+                if (this._board.canMoveKnight(x, y, destX, destY, playerId)) {
+                  legalMoves.push({ action: 'knight_move', x, y, destX, destY })
+                }
               }
             }
           }
