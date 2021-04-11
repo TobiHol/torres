@@ -13,7 +13,9 @@ class Torres {
     this._apPerRound = apPerRound
     this._blocksPerRound = blocksPerRound
 
-    // TODO: initialize all attributes
+    this._Players = [...Array(this._numPlayers).keys()].map(id =>
+      new Player(id, this._numKnights, this._apPerRound, this._blocksPerRound))
+    this._board = new Board()
 
     this._activePlayer = -1 // index/id of active player
     this._startingPlayer = -1 // index/id of starting player
@@ -25,7 +27,6 @@ class Torres {
     if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0)) {
       console.error("numRoundsPerPhase doesn't match dimension of blocksPerRound")
     }
-    this.resetGame()
   }
 
   resetGame () {
