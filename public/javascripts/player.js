@@ -2,14 +2,12 @@ class Player {
   constructor (id, numKnights, apPerRound, blocksPerRound) {
     this._id = id
 
-    // TODO: don't store here?
-    this._numKnights = numKnights
-
     this.apPerRound = apPerRound
     this.blocksPerRound = blocksPerRound
 
     this._absRound = 0
 
+    this._numKnights = numKnights
     // turn based variables
     this._ap = apPerRound
     this._numBlocks = blocksPerRound[this._absRound]
@@ -23,6 +21,10 @@ class Player {
 
   get points () {
     return this._points
+  }
+
+  get ap () {
+    return this._ap
   }
 
   addPoints (points) {
@@ -39,6 +41,11 @@ class Player {
     this._ap -= 1
   }
 
+  placeBlockUndo () {
+    this._numBlocks++
+    this._ap += 1
+  }
+
   canPlaceKnight () {
     if (this._numKnights < 1 || this._ap < 2) return false
     return true
@@ -49,6 +56,11 @@ class Player {
     this._ap -= 2
   }
 
+  placeKnightUndo () {
+    this._numKnights++
+    this._ap += 2
+  }
+
   canMoveKnight () {
     if (this._ap < 1) return false
     return true
@@ -56,6 +68,10 @@ class Player {
 
   moveKnight () {
     this._ap -= 1
+  }
+
+  moveKnightUndo () {
+    this._ap += 1
   }
 
   endTurn () {

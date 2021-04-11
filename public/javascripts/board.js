@@ -82,10 +82,21 @@ class Board {
   }
 
   placeBlock (square, castleId) {
+    // console.log(castleId)
     square.height += 1
     square.castle = castleId
     if (square.height === 1) {
       this._castleSizes[castleId] += 1
+    }
+  }
+
+  placeBlockUndo (x, y) {
+    const square = this.getSquare(x, y)
+    square.height -= 1
+    if (square.height === 0) {
+      // console.log(square.castle)
+      this._castleSizes[square.castle] -= 1
+      square.castle = -1
     }
   }
 
@@ -112,6 +123,10 @@ class Board {
 
   placeKnight (square, playerId) {
     square.knight = playerId
+  }
+
+  placeKnightUndo (x, y) {
+    this.getSquare(x, y).knight = -1
   }
 
   canMoveKnight (x, y, destX, destY, playerId) {
@@ -142,6 +157,11 @@ class Board {
     startSquare.knight = -1
     destSquare.knight = playerId
     return true
+  }
+
+  moveKnightUndo (x, y, destX, destY, playerId) {
+    this.getSquare(x, y).knight = playerId
+    this.getSquare(destX, destY).knight = -1
   }
 
   evaluateBoard (playerId) {

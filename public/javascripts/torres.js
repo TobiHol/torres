@@ -38,6 +38,23 @@ class Torres {
     return torres
   }
 
+  get activePlayer () {
+    return this._activePlayer
+  }
+
+  getInfo () {
+    return {
+      round: this._round,
+      phase: this._phase,
+      activePlayer: this._activePlayer,
+      startingPlayer: this._startingPlayer,
+      pointsPerPlayer: this._Players.map(p => p._points),
+      apPerPlayer: this._Players.map(p => p._ap),
+      numBlocksPerPlayer: this._Players.map(p => p._numBlocks),
+      absRoundPerPlayer: this._Players.map(p => p._absRound)
+    }
+  }
+
   resetGame () {
     this._Players = [...Array(this._numPlayers).keys()].map(id => new Player(id, this._numKnights, this._apPerRound, this._blocksPerRound))
     this._board = new Board()
@@ -88,6 +105,28 @@ class Torres {
     return true
   }
 
+  placeBlockExecute (playerId, x, y) {
+    this._Players[playerId].placeBlock()
+    const square = this._board.getSquare(x, y)
+    let castleId
+    if (square.height !== 0) {
+      castleId = square.castle
+    } else {
+      for (const n of this._board.getNeighbors(x, y)) {
+        if (n.castle !== -1) {
+          castleId = n.castle
+          break
+        }
+      }
+    }
+    this._board.placeBlock(square, castleId)
+  }
+
+  placeBlockUndo (playerId, x, y) {
+    this._Players[playerId].placeBlockUndo()
+    this._board.placeBlockUndo(x, y)
+  }
+
   placeKnight (playerId, x, y) {
     if (!this.gameRunning || this._activePlayer !== playerId) return false
     const player = this._Players[playerId]
@@ -111,6 +150,16 @@ class Torres {
     return true
   }
 
+  placeKnightExecute (playerId, x, y) {
+    this._Players[playerId].placeKnight()
+    this._board.placeKnight(this._board.getSquare(x, y), playerId)
+  }
+
+  placeKnightUndo (playerId, x, y) {
+    this._Players[playerId].placeKnightUndo()
+    this._board.placeKnightUndo(x, y)
+  }
+
   moveKnight (playerId, x, y, destX, destY) {
     if (!this.gameRunning || this._phase === 0 || this._activePlayer !== playerId) return false
     const player = this._Players[playerId]
@@ -124,6 +173,16 @@ class Torres {
     this._board.moveKnight(movement.startSquare, movement.destSquare, playerId)
 
     return true
+  }
+
+  moveKnightExecute (playerId, x, y, destX, destY) {
+    this._Players[playerId].moveKnight()
+    this._board.moveKnight(this._board.getSquare(x, y), this._board.getSquare(destX, destY), playerId)
+  }
+
+  moveKnightUndo (playerId, x, y, destX, destY) {
+    this._Players[playerId].moveKnightUndo()
+    this._board.moveKnightUndo(x, y, destX, destY, playerId)
   }
 
   endTurn (playerId) {
@@ -141,6 +200,23 @@ class Torres {
     }
 
     return true
+  }
+
+  endTurnUndoTo ({
+    round, phase, activePlayer, startingPlayer, pointsPerPlayer, apPerPlayer, numBlocksPerPlayer,
+    absRoundPerPlayer
+  }) {
+    this.gameRunning = true
+    this._round = round
+    this._phase = phase
+    this._activePlayer = activePlayer
+    this._startingPlayer = startingPlayer
+    for (let i = 0; i < this._Players.length; i++) {
+      this._Players[i]._points = pointsPerPlayer[i]
+      this._Players[i]._ap = apPerPlayer[i]
+      this._Players[i]._numBlocks = numBlocksPerPlayer[i]
+      this._Players[i]._absRound = absRoundPerPlayer[i]
+    }
   }
 
   endRound () {
@@ -185,9 +261,13 @@ class Torres {
     }
   }
 
+  getPoints (playerId) {
+    return this._Players[playerId].points
+  }
+
   getLegalMoves (playerId) {
     const legalMoves = []
-    if (this._activePlayer !== -1 && this._activePlayer === playerId) {
+    if (this.gameRunning && this._activePlayer !== -1 && this._activePlayer === playerId) {
       const player = this._Players[playerId]
       if (this._phase > 0) {
         legalMoves.push({ action: 'turn_end' })
@@ -211,6 +291,12 @@ class Torres {
       }
     }
     return legalMoves
+  }
+
+  getReasonableMoves (playerId) {
+    const reasonableMoves = this.getLegalMoves(playerId).filter(move =>
+      (move.action !== 'knight_move' || this._board.getSquare(move.x, move.y).height <= this._board.getSquare(move.destX, move.destY).height))
+    return reasonableMoves
   }
 
   ascii () {
