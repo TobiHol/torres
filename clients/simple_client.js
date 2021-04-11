@@ -1,8 +1,6 @@
 const WebSocket = require('ws')
 const events = require('events')
 const Torres = require('../public/javascripts/torres')
-const Board = require('../public/javascripts/board')
-const Player = require('../public/javascripts/player')
 
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
@@ -13,24 +11,16 @@ const myInfo = { id: null }
 async function myMove () {
   const torres = await new Promise(resolve => {
     send('status_request', ['game_state'])
-    messageParser.once('game_state_response', (data) => resolve(assignInstances(data)))
+    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
   })
   const legalMoves = torres.getLegalMoves(torres._activePlayer)
   const randomAction = legalMoves[Math.floor(Math.random() * legalMoves.length)]
+  await new Promise(resolve => setTimeout(resolve, 100))
   if (randomAction) {
     send('move', randomAction)
   } else {
     send('move', { action: 'turn_end' })
   }
-}
-
-function assignInstances (torres) {
-  Object.setPrototypeOf(torres, Torres.prototype)
-  Object.setPrototypeOf(torres._board, Board.prototype)
-  torres._Players.forEach(player => {
-    Object.setPrototypeOf(player, Player.prototype)
-  })
-  return torres
 }
 
 function send (type, data) {

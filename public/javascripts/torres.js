@@ -29,6 +29,15 @@ class Torres {
     }
   }
 
+  static assignInstances (torres) {
+    Object.setPrototypeOf(torres, Torres.prototype)
+    Object.setPrototypeOf(torres._board, Board.prototype)
+    torres._Players.forEach(player => {
+      Object.setPrototypeOf(player, Player.prototype)
+    })
+    return torres
+  }
+
   resetGame () {
     this._Players = [...Array(this._numPlayers).keys()].map(id => new Player(id, this._numKnights, this._apPerRound, this._blocksPerRound))
     this._board = new Board()
