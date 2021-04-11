@@ -16,7 +16,7 @@ node app.js
 ### GET
 get board state:
 ```
-curl localhost:3000/api
+curl localhost:3000/ascii
 ```
 ### POST
 initialize game 
@@ -96,9 +96,25 @@ server broadcast if move was valid and server updated game:
 ```
 
 ### Status request
+server get a number of request:
+```
+{
+  "type": "status_request"
+  "data": [
+    "game_state",
+    "legal_moves",
+    ...
+  ]
+}
+```
 
-not implemented
-
+server response to client for each request:
+```
+{
+  "type": "game_state_response"
+  "data": <torresObject>
+}
+```
 ### Game start/end 
 server start game
 ```
