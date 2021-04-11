@@ -65,8 +65,7 @@ messageParser.on('game_end', (data) => {
 
 messageParser.on('move_update', (data) => {
   // TODO this check only work for two players
-  if ((data.action === 'turn_end' && data.player === (1 - myInfo.id)) || (data.action !== 'turn_end' && data.player === myInfo.id)) {
-    // messageParser.emit('my_turn')
+  if ((data.next_player === myInfo.id)) {
     myMove()
   }
 })

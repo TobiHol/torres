@@ -88,6 +88,7 @@ server broadcast if move was valid and server updated game:
   "type" : "move_update",
   "data": {
     "player": 0,
+    "next_player": 0,
     "action": "block",
     "x": 1,
     "y": 2

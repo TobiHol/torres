@@ -20,7 +20,7 @@ app.use(logger('dev'))
 
 const numPlayers = 2
 const Torres = require('./public/javascripts/torres')
-const torres = new Torres()
+const torres = new Torres(numPlayers)
 
 /*
   express API
@@ -87,7 +87,6 @@ wss.on('connection', (ws) => {
     return
   }
   PLAYERS[getPlayerId(null)] = ws // assign client to player
-  // broadcast(`Player ${getPlayerId(ws)} connected.`)
   // start game
   if (wss.clients.size === numPlayers) {
     torres.initGame()
@@ -165,6 +164,7 @@ wss.on('connection', (ws) => {
           type: 'move_update',
           data: {
             player: playerId,
+            next_player: torres._activePlayer,
             ...json.data
           }
         }))
