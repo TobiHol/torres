@@ -148,7 +148,7 @@ class Torres {
     console.log(scorePerPlayer)
   }
 
-  getLegalMoves (playerId) {´
+  getLegalMoves (playerId) {
     const legalMoves = []
     if (this._activePlayer !== -1 && this._Players[this._activePlayer].id === playerId) {
       const player = this._Players[playerId]
