@@ -14,7 +14,7 @@ async function myMove () {
     messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
   })
   const t0 = performance.now()
-  const bestMove = minimax(torres, torres.activePlayer, 5)
+  const bestMove = minimax(torres, torres.activePlayer, 11, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
   const t1 = performance.now()
   console.log('time: ' + (t1 - t0) + 'ms')
 
@@ -25,7 +25,7 @@ async function myMove () {
   }
 }
 
-function minimax (torres, playerId, depth) {
+function minimax (torres, playerId, depth, alpha, beta) {
   const moves = torres.getReasonableMoves(torres.activePlayer)
   if (depth === 0 || moves.length === 0) {
     return { move: null, value: torres.getPoints(playerId) }
@@ -37,11 +37,15 @@ function minimax (torres, playerId, depth) {
       let info = {}
       if (move.action === 'turn_end') info = torres.getInfo()
       makeMove(torres, move, torres.activePlayer)
-      const childMove = minimax(torres, playerId, depth - 1)
+      const childMove = minimax(torres, playerId, depth - 1, alpha, beta)
       undoMove(torres, move, torres.activePlayer, info)
       if (childMove.value > maxValue) {
         maxValue = childMove.value
         bestMove = { move, value: childMove.value }
+      }
+      alpha = Math.max(alpha, childMove.value)
+      if (alpha >= beta) { // beta cutoff
+        break
       }
     }
     return bestMove
@@ -51,11 +55,15 @@ function minimax (torres, playerId, depth) {
       let info = {}
       if (move.action === 'turn_end') info = torres.getInfo()
       makeMove(torres, move, torres.activePlayer)
-      const childMove = minimax(torres, playerId, depth - 1)
+      const childMove = minimax(torres, playerId, depth - 1, alpha, beta)
       undoMove(torres, move, torres.activePlayer, info)
       if (childMove.value < minValue) {
         minValue = childMove.value
         bestMove = { move, value: childMove.value }
+      }
+      beta = Math.min(beta, childMove.value)
+      if (beta <= alpha) { // alpha cutoff
+        break
       }
     }
   }
