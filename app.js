@@ -30,8 +30,16 @@ app.get('/', function (req, res) {
   res.send(torres.html())
 })
 
-app.get('/api', function (req, res) {
+app.get('/ascii', function (req, res) {
   res.send(torres.ascii())
+})
+
+app.get('/game_state', function (req, res) {
+  res.send(torres)
+})
+
+app.get('/legal_moves', function (req, res) {
+  res.send(torres.getLegalMoves(torres._activePlayer))
 })
 
 // only used for testing
@@ -42,13 +50,15 @@ app.post('/api', function (req, res) {
     success = torres.initGame()
   } else if (req.body.action === 'reset') {
     success = torres.resetGame()
-  } else if (req.body.action === 'block') {
+  } else if (req.body.action === 'legal_moves') {
+    success = torres.getLegalMoves(req.body.player)
+  } else if (req.body.action === 'block_place') {
     success = torres.placeBlock(req.body.player, req.body.x, req.body.y)
-  } else if (req.body.action === 'knight') {
+  } else if (req.body.action === 'knight_place') {
     success = torres.placeKnight(req.body.player, req.body.x, req.body.y)
-  } else if (req.body.action === 'move') {
+  } else if (req.body.action === 'knight_move') {
     success = torres.moveKnight(req.body.player, req.body.x, req.body.y, req.body.destX, req.body.destY)
-  } else if (req.body.action === 'end') {
+  } else if (req.body.action === 'turn_end') {
     success = torres.endTurn(req.body.player)
   } else { console.log('unknown action') }
   console.log(success ? 'action performed' : 'action could not be performed')
@@ -109,7 +119,7 @@ wss.on('connection', (ws) => {
       case 'move':
         onMove()
         break
-      case 'request':
+      case 'status_request':
         onRequest()
         break
       default:
@@ -161,7 +171,25 @@ wss.on('connection', (ws) => {
       }
     }
     function onRequest () {
-      // TODO
+      const requests = json.data
+      for (const request of requests) {
+        switch (request) {
+          case 'game_state':
+            ws.send(JSON.stringify({
+              type: 'game_state_response',
+              data: torres
+            }))
+            break
+          case 'legal_moves':
+            ws.send(JSON.stringify({
+              type: 'legal_moves_response',
+              data: torres.getLegalMoves(torres._activePlayer)
+            }))
+            break
+          default:
+            break
+        }
+      }
     }
   })
   ws.on('close', () => {
