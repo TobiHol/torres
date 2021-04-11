@@ -17,6 +17,8 @@ class Torres {
     this._round = -1 // current round
     this._phase = -1 // current phase
 
+    this.gameRunning = false
+
     if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0)) {
       console.error("numRoundsPerPhase doesn't match dimension of blocksPerRound")
     }
@@ -29,6 +31,7 @@ class Torres {
     this._activePlayer = -1
     this._round = -1
     this._phase = -1
+    this.gameRunning = false
 
     return true
   }
@@ -51,12 +54,13 @@ class Torres {
       return false
     }
     this._activePlayer = 0
+    this.gameRunning = true
 
     return true
   }
 
   placeBlock (playerId, x, y) {
-    if (this._phase <= 0 || this._Players[this._activePlayer].id !== playerId) return false
+    if (!this.gameRunning || this._phase === 0 || this._Players[this._activePlayer].id !== playerId) return false
     const player = this._Players[playerId]
 
     // check wether action is illegal
@@ -70,7 +74,7 @@ class Torres {
   }
 
   placeKnight (playerId, x, y) {
-    if (this._phase < 0 || this._Players[this._activePlayer].id !== playerId) return false
+    if (!this.gameRunning || this._Players[this._activePlayer].id !== playerId) return false
     const player = this._Players[playerId]
 
     if (this._phase > 0) {
@@ -93,7 +97,7 @@ class Torres {
   }
 
   moveKnight (playerId, x, y, destX, destY) {
-    if (this._phase <= 0 || this._Players[this._activePlayer].id !== playerId) return false
+    if (!this.gameRunning || this._phase === 0 || this._Players[this._activePlayer].id !== playerId) return false
     const player = this._Players[playerId]
 
     // check wether action is illegal
@@ -108,7 +112,7 @@ class Torres {
   }
 
   endTurn (playerId) {
-    if (this._phase < 0 || this._Players[this._activePlayer].id !== playerId) return false
+    if (!this.gameRunning || this._Players[this._activePlayer].id !== playerId) return false
 
     if (this._phase === 0 && !this._placedInitKnights[playerId]) return false
 
@@ -133,9 +137,18 @@ class Torres {
     if (this._phase > 0) {
       this.evaluateState()
     }
+    if (this._phase === this._numPhases) {
+      this.endGame()
+      return
+    }
     this._round = 1
     this._phase++
     // TODO: change order of players
+  }
+
+  endGame () {
+    this.gameRunning = false
+    // TODO
   }
 
   evaluateState () {
@@ -177,25 +190,25 @@ class Torres {
   }
 
   ascii () {
-    let str = 'Phase: ' + this._phase + '\n'
-    str += 'Round: ' + this._round + '\n'
+    let str = 'Phase: ' + (this.gameRunning ? this._phase : '-') + '\n'
+    str += 'Round: ' + (this.gameRunning ? this._round : '-') + '\n'
     str += 'Active Player: ' + (this._activePlayer === -1 ? 'none' : this._Players[this._activePlayer].id) + '\n\n'
     str += this._board.ascii() + '\n\n'
     str += 'Players \n'
     for (const p of this._Players) {
-      str += p.ascii(this._phase)
+      str += p.ascii(this.gameRunning, this._phase)
     }
     return str
   }
 
   html () {
-    let str = 'Phase: ' + this._phase + '<br/>'
-    str += 'Round: ' + this._round + '<br/><br/>'
-    str += 'Active Player: ' + (this._activePlayer === -1 ? -1 : this._Players[this._activePlayer].id) + '<br/><br/>'
+    let str = 'Phase: ' + (this.gameRunning ? this._phase : '-') + '<br/>'
+    str += 'Round: ' + (this.gameRunning ? this._round : '-') + '<br/><br/>'
+    str += 'Active Player: ' + (this.gameRunning ? this._Players[this._activePlayer].id : '-') + '<br/><br/>'
     str += this._board.html() + '<br/><br/>'
     str += 'Players <br/>'
     for (const p of this._Players) {
-      str += p.html(this._phase)
+      str += p.html(this.gameRunning, this._phase)
     }
     return str
   }

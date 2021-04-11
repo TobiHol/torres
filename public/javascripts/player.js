@@ -62,18 +62,18 @@ class Player {
     this._numBlocks = this.blocksPerRound[this._absRound]
   }
 
-  ascii (phase) {
+  ascii (gameRunning, phase) {
     let str = 'ID: ' + this._id + '\tPoints: ' + this._points
-    if (phase > 0) {
+    if (gameRunning && phase > 0) {
       str += '\tAP: ' + this._ap + '\tKnights: ' + this._numKnights + '\tBlocks: ' + this._numBlocks
     }
     str += '\n'
     return str
   }
 
-  html (phase) {
+  html (gameRunning, phase) {
     let str = 'ID: ' + this._id + '&emsp; Points: ' + this._points
-    if (phase > 0) {
+    if (gameRunning && phase > 0) {
       str += '&emsp; AP: ' + this._ap + '&emsp; Knights: ' + this._numKnights + '&emsp; Blocks: ' + this._numBlocks
     }
     str += '<br/>'
