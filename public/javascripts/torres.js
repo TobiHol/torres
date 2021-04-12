@@ -234,7 +234,7 @@ class Torres {
 
   endPhase () {
     if (this._phase > 0) {
-      this.evaluateState()
+      this.endOfPhasEvaluation()
     }
     if (this._phase === this._numPhases) { // end of game
       this.endGame()
@@ -247,9 +247,20 @@ class Torres {
     this._phase++
   }
 
+  isAtEndOfPhase () {
+    return this._activePlayer === this._startingPlayer && this._round === 1
+  }
+
   endGame () {
     this.gameRunning = false
     // TODO
+  }
+
+  endOfPhasEvaluation () {
+    for (const p of this._Players) {
+      const score = this._board.evaluateBoard(p.id)
+      p.addPoints(score)
+    }
   }
 
   evaluateState () {
@@ -257,12 +268,16 @@ class Torres {
     for (const p of this._Players) {
       const score = this._board.evaluateBoard(p.id)
       scorePerPlayer[p.id] = score
-      p.addPoints(score)
     }
+    return this._Players.map(p => p.points + scorePerPlayer[p.id])
   }
 
   getPoints (playerId) {
     return this._Players[playerId].points
+  }
+
+  getPointsPerPlayer () {
+    return this._Players.map(p => p.points)
   }
 
   getLegalMoves (playerId) {
