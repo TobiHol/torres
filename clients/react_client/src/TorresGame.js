@@ -1,6 +1,7 @@
 import React from 'react';
 
-const client = new WebSocket('ws://localhost:3000/');
+const host = window.location.hostname
+const client = new WebSocket(`ws://${host}:3000/`);
 
 function Square(props) {
   return (
@@ -22,14 +23,13 @@ class Game extends React.Component {
 
   componentDidMount() {
     const events = require('events')
-    // const Torres = require('./game/torres')
 
     const ws = client
     const messageParser = new events.EventEmitter()
     const _this = this
 
     // do stuff for own turn here.
-    async function myMove () {
+    async function update () {
       const torresNoInstance = await new Promise(resolve => {
         _this.send('status_request', ['game_state'])
         messageParser.once('game_state_response', (data) => resolve(data))
@@ -64,9 +64,7 @@ class Game extends React.Component {
     messageParser.on('game_start', (data) => {
       console.log('game started')
       this.myInfo.id = data.your_player_id
-      if (data.your_player_id === 0) {
-        myMove()
-      }
+      update()
     })
 
     messageParser.on('game_end', (data) => {
@@ -74,9 +72,7 @@ class Game extends React.Component {
     })
 
     messageParser.on('move_update', (data) => {
-      if ((data.next_player === this.myInfo.id)) {
-        myMove()
-      }
+      update()
     })
 
     messageParser.on('move_response', (data) => {
@@ -177,7 +173,7 @@ class Game extends React.Component {
     let board = this.state.torres._board
     for (let i = 0; i < board._board.length; i++) {
       if (i % board._width === 0) {
-        res.push(<div className="board-row"/>)
+        res.push(<div />)
       }
       res.push(this.renderSquare(i))
     }
@@ -185,6 +181,12 @@ class Game extends React.Component {
   }
 
   renderLegalMoves(){
+    if (!this.state.torres.gameRunning) {
+      return 'game is not running'
+    }
+    if (this.state.torres._activePlayer !== this.myInfo.id) {
+      return "not your turn"
+    }
     let myMove = this.state.move
     let legalMoves = this.state.legalMoves
     let renderedMoves = []
@@ -217,58 +219,88 @@ class Game extends React.Component {
   }
 
   renderPlayerTable(){
-    let res = ['Players:', <br/>]
-    let players = this.state.torres._Players
-    players.forEach(player => {
-      res.push(`ID: ${player._id} Points: ${player._points} AP: ${player._ap} Knights: ${player._numKnights} Blocks: ${player._numBlocks}`)
-      res.push(<br/>)
-    });
-    return res
+    let torres = this.state.torres
+    let players = torres._Players
+    let colors = torres._board._colors
+    let header = (
+      <tr>
+        <th>Turn</th>
+        <th>Player</th>
+        <th>ID</th>
+        <th>AP</th>
+        <th>Blocks</th>
+        <th>Knights</th>
+        <th>Points</th>
+      </tr>
+    )
+    let data = players.map((player, index) => {
+      const {_id,apPerRound,blocksPerRound,_absRound,_numKnights,_ap,_numBlocks,_points} = player
+      return (
+        <tr key={_id}>
+          <td>{torres._activePlayer === _id ? '>' : ''}</td>
+          {/* <td style={{'backgroundColor':colors[_id+1]}}></td> */}
+          <td><span style={{color:colors[_id+1]}}>▲</span></td>
+          <td>{_id}</td>
+          <td>{_ap}</td>
+          <td>{_numBlocks}</td>
+          <td>{_numKnights}</td>
+          <td>{_points}</td>
+        </tr>
+      )
+    })
+    return (
+      <div>
+        {/* <h3 id='title'>Player Table</h3> */}
+        <table className='player-table' id='players'>
+          <tbody>
+            {header}
+            {data}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  renderGameInfo(){
+    let torres = this.state.torres
+    return(
+      <div>
+        You are the {torres._board._colors[this.myInfo.id + 1]} Player <span style={{color:torres._board._colors[this.myInfo.id + 1]}}>▲</span> (ID: {this.myInfo.id})
+        <br/>
+        <br/>
+        Phase: {torres._phase}/{torres._numPhases}
+        <br/>
+        Round: {torres._round}/{torres._numRoundsPerPhase[torres._phase-1]}
+        <br/>
+      </div>
+    )
   }
 
   render() {
     let torres = this.state.torres
     if (torres === null ) {
       return (
-        'Loading'
+        'Waiting'
       )
     }
     return (
       <div className='game'>
-        <div>
-          Phase: {torres._phase}/{torres._numPhases}
-          <br/>
-          Round: {torres._round}/{torres._numRoundsPerPhase[torres._phase]}
-          <br/>
-          <br/>
-          Starting Player: {torres._startingPlayer}
-          <br/>
-          Active Player: {torres._activePlayer}
-          <br/>
+        <div className='game-info'>
+          {this.renderGameInfo()}
           <br/>
           {this.renderPlayerTable()}
-          <br/>
-          
         </div>
-        <div>
+        <div className='game-board'>
           {this.renderAllSquares()}
         </div>
-        <div>
+        <div className='game-action'>
           {JSON.stringify(this.state.move)}
-        </div>
-        <div>
+          <br/>
           {this.renderLegalMoves()}
         </div>
       </div>
     )
   }
 }
-
-// ========================================
-
-// ReactDOM.render(
-//   <Game />,
-//   document.getElementById('root')
-// );
 
 export default Game;
