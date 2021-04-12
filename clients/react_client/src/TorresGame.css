@@ -1,22 +1,3 @@
-/* body {
-  font: 14px "Century Gothic", Futura, sans-serif;
-  margin: 20px;
-}
-
-ol, ul {
-  padding-left: 30px;
-}
-
-.board-row:after {
-  clear: both;
-  content: "";
-  display: table;
-}
-
-.status {
-  margin-bottom: 10px;
-} */
-
 .square {
   color: black;
   background: #fff;
@@ -32,21 +13,3 @@ ol, ul {
   text-align: center;
   width: 34px;
 }
-
-/* .square:focus {
-  outline: none;
-}
-
-.kbd-navigation .square:focus {
-  background: #ddd;
-}
-
-.game {
-  display: flex;
-  flex-direction: row;
-  line-height: 150%;
-}
-
-.game-info {
-  margin-left: 20px;
-} */

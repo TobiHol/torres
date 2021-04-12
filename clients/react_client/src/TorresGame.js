@@ -1,5 +1,4 @@
 import React from 'react';
-import Torres from './game/torres';
 
 const client = new WebSocket('ws://localhost:3000/');
 
@@ -20,9 +19,10 @@ function Button(props) {
 }
 
 class Game extends React.Component {
-  setup() {
+
+  componentDidMount() {
     const events = require('events')
-    const Torres = require('./game/torres')
+    // const Torres = require('./game/torres')
 
     const ws = client
     const messageParser = new events.EventEmitter()
@@ -30,12 +30,17 @@ class Game extends React.Component {
 
     // do stuff for own turn here.
     async function myMove () {
-      const torres = await new Promise(resolve => {
+      const torresNoInstance = await new Promise(resolve => {
         _this.send('status_request', ['game_state'])
-        messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
+        messageParser.once('game_state_response', (data) => resolve(data))
+      })
+      const legalMoves = await new Promise(resolve => {
+        _this.send('status_request', ['legal_moves'])
+        messageParser.once('legal_moves_response', (data) => resolve(data))
       })
       _this.setState({
-        torres: torres
+        torres: torresNoInstance,
+        legalMoves:legalMoves
       })
     }
 
@@ -60,7 +65,6 @@ class Game extends React.Component {
       console.log('game started')
       this.myInfo.id = data.your_player_id
       if (data.your_player_id === 0) {
-        // messageParser.emit('my_turn')
         myMove()
       }
     })
@@ -70,7 +74,6 @@ class Game extends React.Component {
     })
 
     messageParser.on('move_update', (data) => {
-      // TODO this check only work for two players
       if ((data.next_player === this.myInfo.id)) {
         myMove()
       }
@@ -84,7 +87,6 @@ class Game extends React.Component {
     }
 
     ws.onmessage = (message) => {
-      // console.log(message.data)
       try {
         const json = JSON.parse(message.data)
         messageParser.emit(json.type, json.data)
@@ -106,7 +108,8 @@ class Game extends React.Component {
     super(props);
     this.myInfo = { id: null }
     this.state = {
-      torres: new Torres(),
+      torres: null,
+      legalMoves: [],
       move: {
         action: null,
         x: null,
@@ -115,7 +118,6 @@ class Game extends React.Component {
         destY: null
       }
     };
-    this.setup()
   }
   
   handleClick(i) {
@@ -145,11 +147,21 @@ class Game extends React.Component {
   }
 
   renderSquare(i) {
+    let move = this.state.move
     let board = this.state.torres._board
+
     let height = board._board[i].height
+    let borderColor = 'black'
+    let borderWidth = '1px'
+    if ((move.x + move.y * board._width === i && move.x !== null) || (move.destX + move.destY * board._width === i && move.destX !== null)) {
+      borderColor = 'red'
+      borderWidth = '2px'
+    }
     let style = {
       'color': board._colors[board._board[i].knight + 1],
-      'backgroundColor': height > 0 ? 'grey' : 'white'
+      'backgroundColor': height > 0 ? 'grey' : 'white',
+      'borderColor': borderColor,
+      'borderWidth': borderWidth
     }
     return (
       <Square
@@ -165,7 +177,6 @@ class Game extends React.Component {
     let board = this.state.torres._board
     for (let i = 0; i < board._board.length; i++) {
       if (i % board._width === 0) {
-        // res.push(<br/>)
         res.push(<div className="board-row"/>)
       }
       res.push(this.renderSquare(i))
@@ -174,9 +185,8 @@ class Game extends React.Component {
   }
 
   renderLegalMoves(){
-    let torres = this.state.torres
     let myMove = this.state.move
-    let legalMoves = torres.getLegalMoves(torres._activePlayer)
+    let legalMoves = this.state.legalMoves
     let renderedMoves = []
     legalMoves.forEach(move => {
       if ((move.action !== 'turn_end' && move.action !== null) && (myMove.x !== move.x || myMove.y !== move.y)){
@@ -218,12 +228,17 @@ class Game extends React.Component {
 
   render() {
     let torres = this.state.torres
+    if (torres === null ) {
+      return (
+        'Loading'
+      )
+    }
     return (
       <div className='game'>
         <div>
           Phase: {torres._phase}/{torres._numPhases}
           <br/>
-          Round: {torres._round}/{torres._numRoundsPerPhase}
+          Round: {torres._round}/{torres._numRoundsPerPhase[torres._phase]}
           <br/>
           <br/>
           Starting Player: {torres._startingPlayer}
