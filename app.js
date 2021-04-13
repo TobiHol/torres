@@ -39,7 +39,7 @@ app.get('/game_state', function (req, res) {
 })
 
 app.get('/legal_moves', function (req, res) {
-  res.send(torres.getLegalMoves(torres._activePlayer))
+  res.send(torres.getLegalMoves(torres.activePlayer))
 })
 
 // only used for testing
@@ -164,7 +164,7 @@ wss.on('connection', (ws) => {
           type: 'move_update',
           data: {
             player: playerId,
-            next_player: torres._activePlayer,
+            next_player: torres.activePlayer,
             ...json.data
           }
         }))
@@ -183,7 +183,7 @@ wss.on('connection', (ws) => {
           case 'legal_moves':
             ws.send(JSON.stringify({
               type: 'legal_moves_response',
-              data: torres.getLegalMoves(torres._activePlayer)
+              data: torres.getLegalMoves(torres.activePlayer)
             }))
             break
           default:

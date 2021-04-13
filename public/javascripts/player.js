@@ -1,9 +1,10 @@
 class Player {
-  constructor (id, numKnights, apPerRound, blocksPerRound) {
+  constructor ({ id, color, numKnights, apPerRound, blocksPerRound }) {
     this._id = id
+    this._color = color
 
-    this.apPerRound = apPerRound
-    this.blocksPerRound = blocksPerRound
+    this._apPerRound = apPerRound
+    this._blocksPerRound = blocksPerRound
 
     this._absRound = 0
 
@@ -17,6 +18,10 @@ class Player {
 
   get id () {
     return this._id
+  }
+
+  get color () {
+    return this._color
   }
 
   get points () {
@@ -80,9 +85,9 @@ class Player {
   }
 
   endRound () {
-    this._ap = this.apPerRound
+    this._ap = this._apPerRound
     this._absRound++
-    this._numBlocks = this.blocksPerRound[this._absRound]
+    this._numBlocks = this._blocksPerRound[this._absRound]
   }
 
   ascii (gameRunning, phase) {

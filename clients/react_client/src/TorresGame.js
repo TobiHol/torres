@@ -121,7 +121,7 @@ class Game extends React.Component {
     let x = i % board._width
     let y = Math.floor(i / board._width)
     let myMove = this.state.move
-    if (board._board[myMove.x + myMove.y * board._width].knight !== this.myInfo.id || myMove.destX !== null) {
+    if (board._squares[myMove.x + myMove.y * board._width].knight !== this.myInfo.id || myMove.destX !== null) {
       this.setState({
         move: {
           ...this.state.move,
@@ -146,7 +146,8 @@ class Game extends React.Component {
     let move = this.state.move
     let board = this.state.torres._board
 
-    let height = board._board[i].height
+    let height = board._squares[i].height
+    let knight = board._squares[i].knight
     let borderColor = 'black'
     let borderWidth = '1px'
     if ((move.x + move.y * board._width === i && move.x !== null) || (move.destX + move.destY * board._width === i && move.destX !== null)) {
@@ -154,7 +155,7 @@ class Game extends React.Component {
       borderWidth = '2px'
     }
     let style = {
-      'color': board._colors[board._board[i].knight + 1],
+      'color': (knight === -1 ? 'black' : this.state.torres._playerColors[knight]),
       'backgroundColor': height > 0 ? 'grey' : 'white',
       'borderColor': borderColor,
       'borderWidth': borderWidth
@@ -171,7 +172,7 @@ class Game extends React.Component {
   renderAllSquares(){
     let res = []
     let board = this.state.torres._board
-    for (let i = 0; i < board._board.length; i++) {
+    for (let i = 0; i < board._squares.length; i++) {
       if (i % board._width === 0) {
         res.push(<div />)
       }
@@ -181,7 +182,7 @@ class Game extends React.Component {
   }
 
   renderLegalMoves(){
-    if (!this.state.torres.gameRunning) {
+    if (!this.state.torres._gameRunning) {
       return 'game is not running'
     }
     if (this.state.torres._activePlayer !== this.myInfo.id) {
@@ -220,8 +221,6 @@ class Game extends React.Component {
 
   renderPlayerTable(){
     let torres = this.state.torres
-    let players = torres._Players
-    let colors = torres._board._colors
     let header = (
       <tr>
         <th>Turn</th>
@@ -233,13 +232,13 @@ class Game extends React.Component {
         <th>Points</th>
       </tr>
     )
-    let data = players.map((player, index) => {
-      const {_id,apPerRound,blocksPerRound,_absRound,_numKnights,_ap,_numBlocks,_points} = player
+    let data = torres._playerList.map(player => {
+      const {_id, _color, _numKnights, _ap, _numBlocks, _points} = player
       return (
         <tr key={_id}>
           <td>{torres._activePlayer === _id ? '>' : ''}</td>
           {/* <td style={{'backgroundColor':colors[_id+1]}}></td> */}
-          <td><span style={{color:colors[_id+1]}}>▲</span></td>
+          <td><span style={{color:_color}}>▲</span></td>
           <td>{_id}</td>
           <td>{_ap}</td>
           <td>{_numBlocks}</td>
@@ -265,7 +264,7 @@ class Game extends React.Component {
     let torres = this.state.torres
     return(
       <div>
-        You are the {torres._board._colors[this.myInfo.id + 1]} Player <span style={{color:torres._board._colors[this.myInfo.id + 1]}}>▲</span> (ID: {this.myInfo.id})
+        You are the {torres._playerColors[this.myInfo.id]} Player <span style={{color:torres._playerColors[this.myInfo.id]}}>▲</span> (ID: {this.myInfo.id})
         <br/>
         <br/>
         Phase: {torres._phase}/{torres._numPhases}

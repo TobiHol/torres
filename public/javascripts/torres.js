@@ -3,43 +3,74 @@ const Player = require('./player')
 
 class Torres {
   constructor (numPlayers = 2, numRoundsPerPhase = [4, 4, 4],
-    blocksPerRound = new Array(4 * 3).fill(3), apPerRound = 5, numKnights = 5, numCastles = 8) {
+    blocksPerRound = new Array(4 * 3).fill(3), apPerRound = 5, numKnights = 5,
+    boardHeight = 8, boardWidth = 8, numCastles = 8, startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60],
+    playerColors = ['red', 'blue', 'green', 'orange']) {
+    if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0) || startingBlocks.length !== numCastles) {
+      console.error("parameters don't match")
+    }
+
     this._numPlayers = numPlayers
+    this._playerColors = playerColors
 
     this._numPhases = numRoundsPerPhase.length
     this._numRoundsPerPhase = numRoundsPerPhase
 
-    this._numKnights = numKnights
-    this._apPerRound = apPerRound
-    this._blocksPerRound = blocksPerRound
+    this._playerParams = { numKnights, apPerRound, blocksPerRound }
+    this._boardParams = { height: boardHeight, width: boardWidth, numCastles, startingBlocks, colors: playerColors }
 
-    this._Players = [...Array(this._numPlayers).keys()].map(id =>
-      new Player(id, this._numKnights, this._apPerRound, this._blocksPerRound))
-    this._board = new Board()
+    // set up players and game board
+    this._playerList = [...Array(this._numPlayers).keys()].map(id =>
+      new Player({ id, color: playerColors[id], ...this._playerParams }))
+    this._board = new Board(this._boardParams)
 
     this._activePlayer = -1 // index/id of active player
     this._startingPlayer = -1 // index/id of starting player
     this._round = -1 // current round
     this._phase = -1 // current phase
 
-    this.gameRunning = false
-
-    if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0)) {
-      console.error("numRoundsPerPhase doesn't match dimension of blocksPerRound")
-    }
+    this._gameRunning = false
   }
 
   static assignInstances (torres) {
     Object.setPrototypeOf(torres, Torres.prototype)
     Object.setPrototypeOf(torres._board, Board.prototype)
-    torres._Players.forEach(player => {
+    torres.playerList.forEach(player => {
       Object.setPrototypeOf(player, Player.prototype)
     })
     return torres
   }
 
+  get board () {
+    return this._board
+  }
+
+  get playerList () {
+    return this._playerList
+  }
+
+  getPlayer (id) {
+    return this._playerList[id]
+  }
+
+  get playerColors () {
+    return this._playerColors
+  }
+
   get activePlayer () {
     return this._activePlayer
+  }
+
+  get phase () {
+    return this._phase
+  }
+
+  get round () {
+    return this._round
+  }
+
+  get gameRunning () {
+    return this._gameRunning
   }
 
   getInfo () {
@@ -48,21 +79,21 @@ class Torres {
       phase: this._phase,
       activePlayer: this._activePlayer,
       startingPlayer: this._startingPlayer,
-      pointsPerPlayer: this._Players.map(p => p._points),
-      apPerPlayer: this._Players.map(p => p._ap),
-      numBlocksPerPlayer: this._Players.map(p => p._numBlocks),
-      absRoundPerPlayer: this._Players.map(p => p._absRound)
+      pointsPerPlayer: this._playerList.map(p => p.points),
+      apPerPlayer: this._playerList.map(p => p.ap),
+      numBlocksPerPlayer: this._playerList.map(p => p._numBlocks),
+      absRoundPerPlayer: this._playerList.map(p => p._absRound)
     }
   }
 
   resetGame () {
-    this._Players = [...Array(this._numPlayers).keys()].map(id => new Player(id, this._numKnights, this._apPerRound, this._blocksPerRound))
-    this._board = new Board()
+    this._playerList = [...Array(this._numPlayers).keys()].map(id => new Player({ id, color: this._playerColors[id], ...this._playerParams }))
+    this._board = new Board(this._boardParams)
     this._activePlayer = -1
     this._startingPlayer = -1
     this._round = -1
     this._phase = -1
-    this.gameRunning = false
+    this._gameRunning = false
 
     return true
   }
@@ -72,7 +103,7 @@ class Torres {
 
     if (mode === 'random') {
       this._board.initCastles()
-      this._board.initKnights(this._Players)
+      this._board.initKnights(this._playerList)
       this._round = 1
       this._phase = 1
     } else if (mode === 'choice') {
@@ -86,14 +117,14 @@ class Torres {
     }
     this._activePlayer = 0
     this._startingPlayer = 0
-    this.gameRunning = true
+    this._gameRunning = true
 
     return true
   }
 
   placeBlock (playerId, x, y) {
-    if (!this.gameRunning || this._phase === 0 || this._activePlayer !== playerId) return false
-    const player = this._Players[playerId]
+    if (!this._gameRunning || this._phase === 0 || this._activePlayer !== playerId) return false
+    const player = this._playerList[playerId]
 
     // check wether action is illegal
     const placement = this._board.canPlaceBlock(x, y)
@@ -106,7 +137,7 @@ class Torres {
   }
 
   placeBlockExecute (playerId, x, y) {
-    this._Players[playerId].placeBlock()
+    this._playerList[playerId].placeBlock()
     const square = this._board.getSquare(x, y)
     let castleId
     if (square.height !== 0) {
@@ -123,13 +154,13 @@ class Torres {
   }
 
   placeBlockUndo (playerId, x, y) {
-    this._Players[playerId].placeBlockUndo()
+    this._playerList[playerId].placeBlockUndo()
     this._board.placeBlockUndo(x, y)
   }
 
   placeKnight (playerId, x, y) {
-    if (!this.gameRunning || this._activePlayer !== playerId) return false
-    const player = this._Players[playerId]
+    if (!this._gameRunning || this._activePlayer !== playerId) return false
+    const player = this._playerList[playerId]
 
     if (this._phase > 0) {
       // check wether action is illegal
@@ -151,18 +182,18 @@ class Torres {
   }
 
   placeKnightExecute (playerId, x, y) {
-    this._Players[playerId].placeKnight()
+    this._playerList[playerId].placeKnight()
     this._board.placeKnight(this._board.getSquare(x, y), playerId)
   }
 
   placeKnightUndo (playerId, x, y) {
-    this._Players[playerId].placeKnightUndo()
+    this._playerList[playerId].placeKnightUndo()
     this._board.placeKnightUndo(x, y)
   }
 
   moveKnight (playerId, x, y, destX, destY) {
-    if (!this.gameRunning || this._phase === 0 || this._activePlayer !== playerId) return false
-    const player = this._Players[playerId]
+    if (!this._gameRunning || this._phase === 0 || this._activePlayer !== playerId) return false
+    const player = this._playerList[playerId]
 
     // check wether action is illegal
     const movement = this._board.canMoveKnight(x, y, destX, destY, playerId)
@@ -176,22 +207,22 @@ class Torres {
   }
 
   moveKnightExecute (playerId, x, y, destX, destY) {
-    this._Players[playerId].moveKnight()
+    this._playerList[playerId].moveKnight()
     this._board.moveKnight(this._board.getSquare(x, y), this._board.getSquare(destX, destY), playerId)
   }
 
   moveKnightUndo (playerId, x, y, destX, destY) {
-    this._Players[playerId].moveKnightUndo()
+    this._playerList[playerId].moveKnightUndo()
     this._board.moveKnightUndo(x, y, destX, destY, playerId)
   }
 
   endTurn (playerId) {
-    if (!this.gameRunning || this._activePlayer !== playerId) return false
+    if (!this._gameRunning || this._activePlayer !== playerId) return false
 
     if (this._phase === 0 && !this._placedInitKnights[playerId]) return false
 
     if (this._phase > 0) {
-      this._Players[playerId].endTurn()
+      this._playerList[playerId].endTurn()
     }
 
     this._activePlayer = (this._activePlayer + 1) % this._numPlayers
@@ -206,22 +237,22 @@ class Torres {
     round, phase, activePlayer, startingPlayer, pointsPerPlayer, apPerPlayer, numBlocksPerPlayer,
     absRoundPerPlayer
   }) {
-    this.gameRunning = true
+    this._gameRunning = true
     this._round = round
     this._phase = phase
     this._activePlayer = activePlayer
     this._startingPlayer = startingPlayer
-    for (let i = 0; i < this._Players.length; i++) {
-      this._Players[i]._points = pointsPerPlayer[i]
-      this._Players[i]._ap = apPerPlayer[i]
-      this._Players[i]._numBlocks = numBlocksPerPlayer[i]
-      this._Players[i]._absRound = absRoundPerPlayer[i]
+    for (let i = 0; i < this._playerList.length; i++) {
+      this._playerList[i]._points = pointsPerPlayer[i]
+      this._playerList[i]._ap = apPerPlayer[i]
+      this._playerList[i]._numBlocks = numBlocksPerPlayer[i]
+      this._playerList[i]._absRound = absRoundPerPlayer[i]
     }
   }
 
   endRound () {
     if (this._phase > 0) {
-      for (const p of this._Players) {
+      for (const p of this._playerList) {
         p.endRound()
       }
     }
@@ -241,7 +272,7 @@ class Torres {
       return
     }
     // determine new starting player
-    this._startingPlayer = this._Players.reduce((maxId, p, id, players) => (p.points > players[maxId].points ? id : maxId), 0)
+    this._startingPlayer = this._playerList.reduce((maxId, p, id, players) => (p.points > players[maxId].points ? id : maxId), 0)
     this._activePlayer = this._startingPlayer
     this._round = 1
     this._phase++
@@ -252,12 +283,12 @@ class Torres {
   }
 
   endGame () {
-    this.gameRunning = false
+    this._gameRunning = false
     // TODO
   }
 
   endOfPhasEvaluation () {
-    for (const p of this._Players) {
+    for (const p of this._playerList) {
       const score = this._board.evaluateBoard(p.id)
       p.addPoints(score)
     }
@@ -265,28 +296,28 @@ class Torres {
 
   evaluateState () {
     const scorePerPlayer = new Array(this._numPlayers)
-    for (const p of this._Players) {
+    for (const p of this._playerList) {
       const score = this._board.evaluateBoard(p.id)
       scorePerPlayer[p.id] = score
     }
-    return this._Players.map(p => p.points + scorePerPlayer[p.id])
+    return this._playerList.map(p => p.points + scorePerPlayer[p.id])
   }
 
   getPoints (playerId) {
-    return this._Players[playerId].points
+    return this._playerList[playerId].points
   }
 
   getPointsPerPlayer () {
-    return this._Players.map(p => p.points)
+    return this._playerList.map(p => p.points)
   }
 
   getLegalMoves (playerId, nullMove = false) {
     const legalMoves = []
-    if (nullMove && this.gameRunning && this._activePlayer !== playerId) {
+    if (nullMove && this._gameRunning && this._activePlayer !== playerId) {
       legalMoves.push({ action: 'null_move' })
     }
-    if (this.gameRunning && this._activePlayer === playerId) {
-      const player = this._Players[playerId]
+    if (this._gameRunning && this._activePlayer === playerId) {
+      const player = this._playerList[playerId]
       if (this._phase > 0) {
         legalMoves.push({ action: 'turn_end' })
       }
@@ -330,11 +361,11 @@ class Torres {
 
   getLegalMovesLimited (playerId, nullMove = false) {
     const legalMoves = []
-    if (nullMove && this.gameRunning && this._activePlayer !== playerId) {
+    if (nullMove && this._gameRunning && this._activePlayer !== playerId) {
       legalMoves.push({ action: 'null_move' })
     }
-    if (this.gameRunning && this._activePlayer === playerId) {
-      const player = this._Players[playerId]
+    if (this._gameRunning && this._activePlayer === playerId) {
+      const player = this._playerList[playerId]
       if (this._phase > 0) {
         legalMoves.push({ action: 'turn_end' })
       }
@@ -369,27 +400,27 @@ class Torres {
   }
 
   ascii () {
-    let str = 'Phase: ' + (this.gameRunning ? this._phase : '-') + '\n'
-    str += 'Round: ' + (this.gameRunning ? this._round : '-') + '\n'
-    str += 'Starting Player: ' + (this.gameRunning ? this._startingPlayer : '-') + '\n'
-    str += 'Active Player: ' + (this.gameRunning ? this._activePlayer : '-') + '\n\n'
+    let str = 'Phase: ' + (this._gameRunning ? this._phase : '-') + '\n'
+    str += 'Round: ' + (this._gameRunning ? this._round : '-') + '\n'
+    str += 'Starting Player: ' + (this._gameRunning ? this._startingPlayer : '-') + '\n'
+    str += 'Active Player: ' + (this._gameRunning ? this._activePlayer : '-') + '\n\n'
     str += this._board.ascii() + '\n\n'
     str += 'Players \n'
-    for (const p of this._Players) {
-      str += p.ascii(this.gameRunning, this._phase)
+    for (const p of this._playerList) {
+      str += p.ascii(this._gameRunning, this._phase)
     }
     return str
   }
 
   html () {
-    let str = 'Phase: ' + (this.gameRunning ? this._phase : '-') + '<br/>'
-    str += 'Round: ' + (this.gameRunning ? this._round : '-') + '<br/><br/>'
-    str += 'Starting Player: ' + (this.gameRunning ? this._startingPlayer : '-') + '<br/>'
-    str += 'Active Player: ' + (this.gameRunning ? this._activePlayer : '-') + '<br/><br/>'
+    let str = 'Phase: ' + (this._gameRunning ? this._phase : '-') + '<br/>'
+    str += 'Round: ' + (this._gameRunning ? this._round : '-') + '<br/><br/>'
+    str += 'Starting Player: ' + (this._gameRunning ? this._startingPlayer : '-') + '<br/>'
+    str += 'Active Player: ' + (this._gameRunning ? this._activePlayer : '-') + '<br/><br/>'
     str += this._board.html() + '<br/><br/>'
     str += 'Players <br/>'
-    for (const p of this._Players) {
-      str += p.html(this.gameRunning, this._phase)
+    for (const p of this._playerList) {
+      str += p.html(this._gameRunning, this._phase)
     }
     return str
   }
