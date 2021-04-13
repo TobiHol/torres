@@ -8,15 +8,24 @@ const messageParser = new events.EventEmitter()
 
 const myInfo = { id: null }
 
+let tt = {}
+let ttLength = 0
+let lookup = 0
+
 async function myMove () {
   const torres = await new Promise(resolve => {
     send('status_request', ['game_state'])
     messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
   })
   const t0 = performance.now()
-  const bestMove = minimax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
+  tt = {}
+  ttLength = 0
+  lookup = 0
+  const bestMove = negamax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, torres.activePlayer)
   const t1 = performance.now()
+  console.log(bestMove)
   console.log('time: ' + (t1 - t0) + 'ms')
+  console.log(lookup)
 
   if (bestMove.move) {
     send('move', bestMove.move)
@@ -25,56 +34,129 @@ async function myMove () {
   }
 }
 
-// TODO: rewrite (or write new function to always do whole turn at once)
+/*
 function minimax (torres, playerId, depth, alpha, beta) {
-  const moves = torres.getReasonableMoves(torres.activePlayer)
-  if (depth === 0 || moves.length === 0) { // should always be at end of turn
-    // return { move: null, value: torres.getPoints(playerId) }
-    return {
+  if (depth === 0 || !torres.gameRunning) { // should always be at end of turn
+    const moveValue = {
       move: null,
-      value: torres.isAtEndOfPhase() ? getValue(torres.getPointsPerPlayer(), playerId) : getValue(torres.evaluateState(), playerId)
+      value: (torres.isAtEndOfPhase() || !torres.gameRunning)
+        ? getValue(torres.getPointsPerPlayer(), playerId)
+        : getValue(torres.evaluateState(), playerId)
     }
+    return moveValue
   }
+  const moves = torres.getLegalMoves(torres.activePlayer)
   let bestMove
-  if (torres.activePlayer === playerId) {
-    let maxValue = Number.NEGATIVE_INFINITY
+  let value
+  if (torres.activePlayer === playerId) { // maximizing player
+    let value = Number.NEGATIVE_INFINITY
     for (const move of moves) {
       let info = {}
       if (move.action === 'turn_end') info = torres.getInfo()
       makeMove(torres, move, torres.activePlayer)
-      // TODO: only reduce depth if move is turn_end
+      // only reduce depth if move is turn_end
       const childMove = minimax(torres, playerId, move.action === 'turn_end' ? depth - 1 : depth, alpha, beta)
       undoMove(torres, move, torres.activePlayer, info)
-      if (childMove.value > maxValue) {
-        maxValue = childMove.value
+      if (childMove.value > value) {
+        value = childMove.value
         bestMove = { move, value: childMove.value }
       }
       alpha = Math.max(alpha, childMove.value)
       if (alpha >= beta) { // beta cutoff
-        print('beta cutofff')
         break
       }
     }
   } else { // minimizing player
-    let minValue = Number.POSITIVE_INFINITY
+    value = Number.POSITIVE_INFINITY
     for (const move of moves) {
       let info = {}
       if (move.action === 'turn_end') info = torres.getInfo()
       makeMove(torres, move, torres.activePlayer)
-      // TODO: only reduce depth if move is turn_end
+      // only reduce depth if move is turn_end
       const childMove = minimax(torres, playerId, move.action === 'turn_end' ? depth - 1 : depth, alpha, beta)
       undoMove(torres, move, torres.activePlayer, info)
-      if (childMove.value < minValue) {
-        minValue = childMove.value
+      if (childMove.value < value) {
+        value = childMove.value
         bestMove = { move, value: childMove.value }
       }
       beta = Math.min(beta, childMove.value)
       if (beta <= alpha) { // alpha cutoff
-        print('alpha cutofff')
         break
       }
     }
   }
+  return bestMove
+} */
+
+function negamax (torres, playerId, depth, alpha, beta, prevPlayer) {
+  if (depth === 0 || !torres.gameRunning) {
+    const moveValue = {
+      move: null,
+      value: -((torres.isAtEndOfPhase() || !torres.gameRunning)
+        ? getValue(torres.getPointsPerPlayer(), prevPlayer)
+        : getValue(torres.evaluateState(), prevPlayer))
+    }
+    return moveValue
+  }
+  const a = alpha
+  let gameState
+  if (tt) {
+    gameState = JSON.stringify(torres)
+    const ttEntry = tt[gameState]
+    if (ttEntry && ttEntry.depth >= depth) {
+      lookup++
+      if (ttEntry.flag === 'EXACT') {
+        lookup++
+        return { move: null, value: ttEntry.value }
+      } else if (ttEntry.flag === 'LOWERBOUND') {
+        alpha = Math.max(alpha, ttEntry.value)
+      } else if (ttEntry.flag === 'UPPERBOUND') {
+        beta = Math.min(beta, ttEntry.beta)
+      }
+      if (alpha >= beta) {
+        return { move: null, value: ttEntry.value }
+      }
+    }
+  }
+
+  const moves = torres.getLegalMovesLimited(playerId, true)
+  let bestMove
+  let value = Number.NEGATIVE_INFINITY
+  for (const move of moves) {
+    let info = {}
+    if (move.action === 'turn_end') info = torres.getInfo()
+    makeMove(torres, move, playerId)
+    const childMove = negamax(torres, playerId === 1 ? 0 : 1, move.action === 'turn_end' ? depth - 1 : depth, -beta, -alpha, playerId) // only reduce depth if move is turn is ended
+    childMove.value = -childMove.value
+    undoMove(torres, move, playerId, info)
+    if (childMove.value > value) {
+      value = childMove.value
+      bestMove = { move, value: childMove.value }
+    }
+    alpha = Math.max(alpha, childMove.value)
+    if (alpha >= beta) {
+      break
+    }
+  }
+  // transposition table store
+  if (tt && ttLength < 1000000) {
+    const ttEntry = {}
+    ttEntry.value = value
+    if (value <= a) {
+      ttEntry.flag = 'UPPERBOUND'
+    } else if (value >= beta) {
+      ttEntry.flag = 'LOWERBOUND'
+    } else {
+      ttEntry.flag = 'EXACT'
+    }
+    ttEntry.depth = depth
+    tt[gameState] = ttEntry
+    ttLength++
+  }
+  if (ttLength === 999999) {
+    console.log('full')
+  }
+
   return bestMove
 }
 
