@@ -6,12 +6,10 @@ class Player {
     this._apPerRound = apPerRound
     this._blocksPerRound = blocksPerRound
 
-    this._absRound = 0
-
     this._numKnights = numKnights
     // turn based variables
     this._ap = apPerRound
-    this._numBlocks = blocksPerRound[this._absRound]
+    this._numBlocks = blocksPerRound[0]
 
     this._points = 0
   }
@@ -30,6 +28,16 @@ class Player {
 
   get ap () {
     return this._ap
+  }
+
+  get numBlocks () {
+    return this._numBlocks
+  }
+
+  resetAttributesTo ({ points, ap, numBlocks }) {
+    this._points = points
+    this._ap = ap
+    this._numBlocks = numBlocks
   }
 
   addPoints (points) {
@@ -84,10 +92,9 @@ class Player {
     this._ap = 0
   }
 
-  endRound () {
+  endRound (absRound) {
     this._ap = this._apPerRound
-    this._absRound++
-    this._numBlocks = this._blocksPerRound[this._absRound]
+    this._numBlocks = this._blocksPerRound[absRound]
   }
 
   ascii (gameRunning, phase) {

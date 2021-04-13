@@ -9,6 +9,9 @@ class Torres {
     if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0) || startingBlocks.length !== numCastles) {
       console.error("parameters don't match")
     }
+    if (playerColors.length < numPlayers) {
+      console.error('not enough player colors given')
+    }
 
     this._numPlayers = numPlayers
     this._playerColors = playerColors
@@ -71,19 +74,6 @@ class Torres {
 
   get gameRunning () {
     return this._gameRunning
-  }
-
-  getInfo () {
-    return {
-      round: this._round,
-      phase: this._phase,
-      activePlayer: this._activePlayer,
-      startingPlayer: this._startingPlayer,
-      pointsPerPlayer: this._playerList.map(p => p.points),
-      apPerPlayer: this._playerList.map(p => p.ap),
-      numBlocksPerPlayer: this._playerList.map(p => p._numBlocks),
-      absRoundPerPlayer: this._playerList.map(p => p._absRound)
-    }
   }
 
   resetGame () {
@@ -233,27 +223,32 @@ class Torres {
     return true
   }
 
-  endTurnUndoTo ({
-    round, phase, activePlayer, startingPlayer, pointsPerPlayer, apPerPlayer, numBlocksPerPlayer,
-    absRoundPerPlayer
-  }) {
+  getInfo () {
+    return {
+      round: this._round,
+      phase: this._phase,
+      activePlayer: this._activePlayer,
+      startingPlayer: this._startingPlayer,
+      playersInfo: this._playerList.map(p => ({ points: p.points, ap: p.ap, numBlocks: p.numBlocks }))
+    }
+  }
+
+  endTurnUndoTo ({ round, phase, activePlayer, startingPlayer, playersInfo }) {
     this._gameRunning = true
     this._round = round
     this._phase = phase
     this._activePlayer = activePlayer
     this._startingPlayer = startingPlayer
     for (let i = 0; i < this._playerList.length; i++) {
-      this._playerList[i]._points = pointsPerPlayer[i]
-      this._playerList[i]._ap = apPerPlayer[i]
-      this._playerList[i]._numBlocks = numBlocksPerPlayer[i]
-      this._playerList[i]._absRound = absRoundPerPlayer[i]
+      this._playerList[i].resetAttributesTo(playersInfo[i])
     }
   }
 
   endRound () {
     if (this._phase > 0) {
+      const absRound = (this._round - 1) + this._numRoundsPerPhase.reduce((sum, rounds, i) => i < this._phase - 1 ? sum + rounds : sum, 0)
       for (const p of this._playerList) {
-        p.endRound()
+        p.endRound(absRound)
       }
     }
     if (this._phase === 0 || this._round === this._numRoundsPerPhase[this._phase - 1]) { // end of phase
