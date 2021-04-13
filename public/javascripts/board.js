@@ -1,16 +1,19 @@
 class Board {
-  constructor (height = 8, width = 8, numCastles = 8) {
+  constructor (height = 4, width = 4, numCastles = 2) {
     this._height = height
     this._width = width
     this._numCastles = numCastles
     this._castleSizes = new Array(numCastles)
 
-    this._startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60] // only for 8 castles, 8x8 board
+    // this._startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60] // only for 8 castles, 8x8 board
+    this._startingBlocks = [0, 15]
     this._colors = ['black', 'red', 'blue', 'green', 'orange'] // TODO // black is default color
 
     // generate board
-    this._board = new Array(this._height * this._width).fill().map(x => (
+    this._board = new Array(this._height * this._width).fill().map((x, i) => (
       {
+        x: i % this._width,
+        y: Math.floor(i / this._width),
         castle: -1, // id of castle or -1
         height: 0,
         knight: -1 // player id of knight or -1
@@ -58,6 +61,10 @@ class Board {
   getNeighbors (x, y) {
     const neighbors = [this.getSquare(x + 1, y), this.getSquare(x - 1, y), this.getSquare(x, y + 1), this.getSquare(x, y - 1)]
     return neighbors.filter(x => x) // filter null
+  }
+
+  getKnightSquares (playerId) {
+    return this._board.filter(square => square.knight === playerId)
   }
 
   canPlaceBlock (x, y) {

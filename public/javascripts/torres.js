@@ -280,27 +280,44 @@ class Torres {
     return this._Players.map(p => p.points)
   }
 
-  getLegalMoves (playerId) {
+  getLegalMoves (playerId, nullMove = false) {
     const legalMoves = []
+    if (nullMove && this.gameRunning && this._activePlayer !== playerId) {
+      legalMoves.push({ action: 'null_move' })
+    }
     if (this.gameRunning && this._activePlayer === playerId) {
       const player = this._Players[playerId]
       if (this._phase > 0) {
         legalMoves.push({ action: 'turn_end' })
       }
-      for (let x = 0; x < this._board.width; x++) {
-        for (let y = 0; y < this._board.height; y++) {
-          if (this._phase > 0 && player.canPlaceBlock() && this._board.canPlaceBlock(x, y)) {
-            legalMoves.push({ action: 'block_place', x, y })
+      if (player.ap > 0) {
+        if (this._phase > 0 && player.canPlaceBlock()) {
+          for (let x = 0; x < this._board.width; x++) {
+            for (let y = 0; y < this._board.height; y++) {
+              if (this._board.canPlaceBlock(x, y)) {
+                legalMoves.push({ action: 'block_place', x, y })
+              }
+            }
           }
-          if (player.canPlaceKnight() && this._board.canPlaceKnight(x, y, playerId, this._phase === 0)) {
-            legalMoves.push({ action: 'knight_place', x, y })
+        }
+        // get knight positions
+        const knightSquares = this._board.getKnightSquares(playerId)
+        if (player.canPlaceKnight()) {
+          for (const square of knightSquares) {
+            for (const n of this._board.getNeighbors(square.x, square.y)) {
+              if (n.knight === -1 && n.height <= square.height) {
+                legalMoves.push({ action: 'knight_place', x: n.x, y: n.y })
+              }
+            }
           }
-          if (this._phase > 0 && this._board.getSquare(x, y).knight === playerId && player.canMoveKnight()) {
+        }
+        if (this._phase > 0 && player.canMoveKnight()) {
+          for (const square of knightSquares) {
             // find destinations for knight
             for (let destX = 0; destX < this._board.width; destX++) {
               for (let destY = 0; destY < this._board.height; destY++) {
-                if (this._board.canMoveKnight(x, y, destX, destY, playerId)) {
-                  legalMoves.push({ action: 'knight_move', x, y, destX, destY })
+                if (this._board.canMoveKnight(square.x, square.y, destX, destY, playerId)) {
+                  legalMoves.push({ action: 'knight_move', x: square.x, y: square.y, destX, destY })
                 }
               }
             }
@@ -311,10 +328,44 @@ class Torres {
     return legalMoves
   }
 
-  getReasonableMoves (playerId) {
-    const reasonableMoves = this.getLegalMoves(playerId).filter(move =>
-      (move.action !== 'knight_move' || this._board.getSquare(move.x, move.y).height <= this._board.getSquare(move.destX, move.destY).height))
-    return reasonableMoves
+  getLegalMovesLimited (playerId, nullMove = false) {
+    const legalMoves = []
+    if (nullMove && this.gameRunning && this._activePlayer !== playerId) {
+      legalMoves.push({ action: 'null_move' })
+    }
+    if (this.gameRunning && this._activePlayer === playerId) {
+      const player = this._Players[playerId]
+      if (this._phase > 0) {
+        legalMoves.push({ action: 'turn_end' })
+      }
+      if (player.ap > 0) {
+        if (this._phase > 0 && player.canPlaceBlock()) {
+          for (let x = 0; x < this._board.width; x++) {
+            for (let y = 0; y < this._board.height; y++) {
+              if (this._board.canPlaceBlock(x, y)) {
+                legalMoves.push({ action: 'block_place', x, y })
+              }
+            }
+          }
+        }
+        // get knight positions
+        const knightSquares = this._board.getKnightSquares(playerId)
+        for (const square of knightSquares) {
+          for (const n of this._board.getNeighbors(square.x, square.y)) {
+            if (n.knight === -1) {
+              if (player.canPlaceKnight() && n.height <= square.height) {
+                legalMoves.push({ action: 'knight_place', x: n.x, y: n.y })
+              }
+              // don't move through castles, only move at most one up/down
+              if (Math.abs(n.height - square.height) <= 1) {
+                legalMoves.push({ action: 'knight_move', x: square.x, y: square.y, destX: n.x, destY: n.y })
+              }
+            }
+          }
+        }
+      }
+    }
+    return legalMoves
   }
 
   ascii () {
