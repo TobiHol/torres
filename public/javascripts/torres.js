@@ -2,9 +2,9 @@ const Board = require('./board')
 const Player = require('./player')
 
 class Torres {
-  constructor (numPlayers = 2, numRoundsPerPhase = [4, 4, 4],
-    blocksPerRound = new Array(4 * 3).fill(3), apPerRound = 5, numKnights = 5,
+  constructor (numPlayers = 2, initMode = 'random',
     boardHeight = 8, boardWidth = 8, numCastles = 8, startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60],
+    numRoundsPerPhase = [4, 4, 4], blocksPerRound = new Array(4 * 3).fill(3), apPerRound = 5, numKnights = 5,
     playerColors = ['red', 'blue', 'green', 'orange']) {
     if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0) || startingBlocks.length !== numCastles) {
       console.error("parameters don't match")
@@ -18,6 +18,7 @@ class Torres {
 
     this._numPhases = numRoundsPerPhase.length
     this._numRoundsPerPhase = numRoundsPerPhase
+    this._initMode = initMode
 
     this._playerParams = { numKnights, apPerRound, blocksPerRound }
     this._boardParams = { height: boardHeight, width: boardWidth, numCastles, startingBlocks, colors: playerColors }
@@ -88,15 +89,15 @@ class Torres {
     return true
   }
 
-  initGame (mode = 'random') {
+  initGame () {
     if (this._phase !== -1) return false
 
-    if (mode === 'random') {
+    if (this._initMode === 'random') {
       this._board.initCastles()
       this._board.initKnights(this._playerList)
       this._round = 1
       this._phase = 1
-    } else if (mode === 'choice') {
+    } else if (this._initMode === 'choice') {
       this._board.initCastles() // TODO: let players choose castle placements ?
       this._placedInitKnights = new Array(this._numPlayers).fill(false) // TODO: find more elegant solution
       // set attributes to initiation round
@@ -165,14 +166,18 @@ class Torres {
       if (!placement) return false
       this._board.placeKnight(placement.square, playerId)
       this._placedInitKnights[playerId] = true
-      this.endTurn(playerId)
+      // this.endTurn(playerId)
     }
 
     return true
   }
 
   placeKnightExecute (playerId, x, y) {
-    this._playerList[playerId].placeKnight()
+    if (this.phase === 0) {
+      this._placedInitKnights[playerId] = true
+    } else {
+      this._playerList[playerId].placeKnight()
+    }
     this._board.placeKnight(this._board.getSquare(x, y), playerId)
   }
 
@@ -313,10 +318,16 @@ class Torres {
     }
     if (this._gameRunning && this._activePlayer === playerId) {
       const player = this._playerList[playerId]
-      if (this._phase > 0) {
+      if (this._phase > 0 || this._placedInitKnights[playerId]) {
         legalMoves.push({ action: 'turn_end' })
       }
-      if (player.ap > 0) {
+      // place init knight
+      if (this._phase === 0 && !this._placedInitKnights[playerId]) {
+        for (const square of this._board.squares.filter(s => s.height === 1 && s.knight === -1)) {
+          legalMoves.push({ action: 'knight_place', x: square.x, y: square.y })
+        }
+      }
+      if (this._phase > 0 && player.ap > 0) {
         if (this._phase > 0 && player.canPlaceBlock()) {
           for (let x = 0; x < this._board.width; x++) {
             for (let y = 0; y < this._board.height; y++) {
@@ -354,6 +365,74 @@ class Torres {
     return legalMoves
   }
 
+  getLegalMovesOrdered (playerId, nullMove = false) {
+    const legalMoves = []
+    const legalMovesPrio = []
+    if (nullMove && this._gameRunning && this._activePlayer !== playerId) {
+      legalMoves.push({ action: 'null_move' })
+    }
+    if (this._gameRunning && this._activePlayer === playerId) {
+      const player = this._playerList[playerId]
+
+      // place init knight
+      if (this._phase === 0 && !this._placedInitKnights[playerId]) {
+        for (const square of this._board.squares.filter(s => s.height === 1 && s.knight === -1)) {
+          legalMovesPrio.push({ action: 'knight_place', x: square.x, y: square.y })
+        }
+      }
+      // get knight positions
+      const knightSquares = this._board.getKnightSquares(playerId)
+      const myCastles = knightSquares.map(s => s.castle)
+      if (this._phase > 0 && player.ap > 0) {
+        if (this._phase > 0 && player.canPlaceBlock()) {
+          for (let x = 0; x < this._board.width; x++) {
+            for (let y = 0; y < this._board.height; y++) {
+              const placement = this._board.canPlaceBlock(x, y)
+              if (placement) {
+                if (placement.castleId in myCastles) {
+                  legalMovesPrio.push({ action: 'block_place', x, y })
+                } else {
+                  legalMoves.push({ action: 'block_place', x, y })
+                }
+              }
+            }
+          }
+        }
+        if (this._phase > 0 && player.canMoveKnight()) {
+          for (const square of knightSquares) {
+            // find destinations for knight
+            for (let destX = 0; destX < this._board.width; destX++) {
+              for (let destY = 0; destY < this._board.height; destY++) {
+                if (this._board.canMoveKnight(square.x, square.y, destX, destY, playerId)) {
+                  if (this._board.getSquare(destX, destY).height > square.height) {
+                    legalMovesPrio.push({ action: 'knight_move', x: square.x, y: square.y, destX, destY })
+                  } else {
+                    legalMoves.push({ action: 'knight_move', x: square.x, y: square.y, destX, destY })
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (this._phase > 0 && player.canPlaceKnight()) {
+          for (const square of knightSquares) {
+            for (const n of this._board.getNeighbors(square.x, square.y)) {
+              if (n.knight === -1 && n.height <= square.height) {
+                legalMovesPrio.push({ action: 'knight_place', x: n.x, y: n.y })
+              }
+            }
+          }
+        }
+      }
+      // end turn
+      if (this._phase > 0 || this._placedInitKnights[playerId]) {
+        legalMovesPrio.push({ action: 'turn_end' })
+      }
+    }
+    legalMovesPrio.push(...legalMoves)
+    return legalMovesPrio
+  }
+
   getLegalMovesLimited (playerId, nullMove = false) {
     const legalMoves = []
     if (nullMove && this._gameRunning && this._activePlayer !== playerId) {
@@ -361,11 +440,17 @@ class Torres {
     }
     if (this._gameRunning && this._activePlayer === playerId) {
       const player = this._playerList[playerId]
-      if (this._phase > 0) {
+      if (this._phase > 0 || this._placedInitKnights[playerId]) {
         legalMoves.push({ action: 'turn_end' })
       }
-      if (player.ap > 0) {
-        if (this._phase > 0 && player.canPlaceBlock()) {
+      // place init knight
+      if (this._phase === 0 && !this._placedInitKnights[playerId]) {
+        for (const square of this._board.squares.filter(s => s.height === 1 && s.knight === -1)) {
+          legalMoves.push({ action: 'knight_place', x: square.x, y: square.y })
+        }
+      }
+      if (this._phase > 0 && player.ap > 0) {
+        if (player.canPlaceBlock()) {
           for (let x = 0; x < this._board.width; x++) {
             for (let y = 0; y < this._board.height; y++) {
               if (this._board.canPlaceBlock(x, y)) {
