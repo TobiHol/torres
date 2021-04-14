@@ -13,10 +13,8 @@ async function myMove () {
     send('status_request', ['game_state'])
     messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
   })
-  const t0 = performance.now()
-  const bestMove = mcts(torres, 2000, torres.activePlayer)
-  const t1 = performance.now()
-  console.log('time: ' + (t1 - t0) + 'ms')
+
+  const bestMove = mcts(torres, torres.activePlayer)
 
   if (bestMove) {
     send('move', bestMove.move)
@@ -25,10 +23,11 @@ async function myMove () {
   }
 }
 
-function mcts (torres, numRuns, playerId) {
+function mcts (torres, playerId) {
+  const t0 = performance.now()
   const rootNode = new Node(torres, null, null, 0)
   let currentNode
-  for (let runs = 0; runs < numRuns; runs++) {
+  while (performance.now() - t0 < 5000) { // 5 second per move
     currentNode = rootNode
     rootNode.visits++
     // simulate game
@@ -37,7 +36,7 @@ function mcts (torres, numRuns, playerId) {
       currentNode.visits++
     }
     // const winner = currentNode.getWinner()
-    const reward = currentNode.getReward()
+    const reward = currentNode.getReward(playerId)
     // backtrack and update winner statistics
     while (currentNode) {
       // currentNode.wins[winner] = (currentNode.wins[winner] || 0) + 1
@@ -45,6 +44,7 @@ function mcts (torres, numRuns, playerId) {
       currentNode = currentNode.parent
     }
   }
+  console.log('runs: ' + rootNode.visits)
   return rootNode.bestChild()
 }
 
@@ -67,7 +67,7 @@ class Node {
     if (!this.parent) { // root node
       return 0
     }
-    const C = 10 // exploration vs. exploitation
+    const C = 20 // exploration vs. exploitation
     const estimatedReward = this.reward / this.visits // score per visit
     return estimatedReward + C * Math.sqrt(2 * Math.log(this.parent.visits) / this.visits)
   }
