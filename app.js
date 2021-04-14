@@ -20,7 +20,11 @@ app.use(logger('dev'))
 
 const numPlayers = 2
 const Torres = require('./public/javascripts/torres')
-const torres = new Torres(numPlayers)
+const torres = new Torres(numPlayers, 'choice', 4, 4, 4, [0, 3, 12, 15])
+
+// for testing
+const { performance } = require('perf_hooks')
+let start
 
 /*
   express API
@@ -89,6 +93,7 @@ wss.on('connection', (ws) => {
   PLAYERS[getPlayerId(null)] = ws // assign client to player
   // start game
   if (wss.clients.size === numPlayers) {
+    start = performance.now()
     torres.initGame()
     GAME_ON = true
     wss.clients.forEach(function each (client) {
@@ -149,6 +154,7 @@ wss.on('connection', (ws) => {
           break
         case 'turn_end':
           valid = torres.endTurn(playerId)
+          console.log('\n' + (performance.now() - start) + '\n')
           break
         default:
           break
