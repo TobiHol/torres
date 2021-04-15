@@ -8,22 +8,21 @@ const messageParser = new events.EventEmitter()
 
 const myInfo = { id: null }
 
+const bestTurn = []
+
 async function myMove () {
   const torres = await new Promise(resolve => {
     send('status_request', ['game_state'])
     messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
   })
 
-  const bestMove = mcts(torres, torres.activePlayer)
-
-  if (bestMove) {
-    send('move', bestMove.move)
-  } else {
-    send('move', { action: 'turn_end' })
+  if (bestTurn.length === 0) {
+    mcts(torres, torres.activePlayer)
   }
+  send('move', bestTurn.shift())
 }
 
-function mcts (torres, playerId, timeLimit = 10000) {
+function mcts (torres, playerId, timeLimit = 20000) {
   const t0 = performance.now()
   const rootNode = new Node(torres, null, null, 0)
   let currentNode
@@ -39,20 +38,21 @@ function mcts (torres, playerId, timeLimit = 10000) {
     const reward = currentNode.getReward(playerId)
     // backtrack and update winner statistics
     while (currentNode) {
-      // currentNode.wins[winner] = (currentNode.wins[winner] || 0) + 1
       currentNode.reward += reward
       currentNode = currentNode.parent
     }
   }
-  console.log('runs: ' + rootNode.visits)
-  for (const node of rootNode.children) {
-    console.log(node.move)
-    console.log('visits: ' + node.visits)
-    console.log('reward: ' + node.reward + '\n')
+
+  // best moves until 'turn_end'
+  currentNode = rootNode
+  while (true) {
+    // console.log(currentNode)
+    currentNode = currentNode.bestChild(playerId)
+    bestTurn.push(currentNode.move)
+    if (currentNode.move.action === 'turn_end') {
+      break
+    }
   }
-  // TODO: return which child ?
-  return rootNode.getChildren().reduce((prev, node) => (node.reward / node.visits) > (prev.reward / prev.visits) ? node : prev)
-  // return rootNode.bestChild()
 }
 
 class Node {
@@ -60,8 +60,7 @@ class Node {
     this.torres = torres
     this.parent = parent
     this.move = move
-    // this.wins = {}
-    this.reward = 0
+    this.reward = 0 // always from point of view of playerId!
     this.visits = 0
     this.children = null
     this.depth = depth
@@ -115,25 +114,21 @@ class Node {
 }
 
 function makeMove (torres, move, playerId) {
-  let valid
   switch (move.action) {
     case 'block_place':
-      valid = torres.placeBlock(playerId, move.x, move.y)
+      torres.placeBlockExecute(playerId, move.x, move.y)
       break
     case 'knight_place':
-      valid = torres.placeKnight(playerId, move.x, move.y)
+      torres.placeKnightExecute(playerId, move.x, move.y)
       break
     case 'knight_move':
-      valid = torres.moveKnight(playerId, move.x, move.y, move.destX, move.destY)
+      torres.moveKnightExecute(playerId, move.x, move.y, move.destX, move.destY)
       break
     case 'turn_end':
-      valid = torres.endTurn(playerId)
+      torres.endTurn(playerId)
       break
     default:
       break
-  }
-  if (!valid) {
-    console.log(move)
   }
 }
 
