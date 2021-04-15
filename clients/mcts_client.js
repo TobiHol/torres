@@ -23,16 +23,16 @@ async function myMove () {
   }
 }
 
-function mcts (torres, playerId) {
+function mcts (torres, playerId, timeLimit = 10000) {
   const t0 = performance.now()
   const rootNode = new Node(torres, null, null, 0)
   let currentNode
-  while (performance.now() - t0 < 5000) { // 5 second per move
+  while (performance.now() - t0 < timeLimit && rootNode.getChildren().length > 1) { // limited time per move & break if only one move possible
     currentNode = rootNode
     rootNode.visits++
     // simulate game
-    while (currentNode.getChildren().length !== 0) { // expand node
-      currentNode = currentNode.bestChild()
+    while (currentNode.getChildren().length !== 0) {
+      currentNode = currentNode.bestChild(playerId)
       currentNode.visits++
     }
     // const winner = currentNode.getWinner()
@@ -45,7 +45,14 @@ function mcts (torres, playerId) {
     }
   }
   console.log('runs: ' + rootNode.visits)
-  return rootNode.bestChild()
+  for (const node of rootNode.children) {
+    console.log(node.move)
+    console.log('visits: ' + node.visits)
+    console.log('reward: ' + node.reward + '\n')
+  }
+  // TODO: return which child ?
+  return rootNode.getChildren().reduce((prev, node) => (node.reward / node.visits) > (prev.reward / prev.visits) ? node : prev)
+  // return rootNode.bestChild()
 }
 
 class Node {
@@ -60,47 +67,50 @@ class Node {
     this.depth = depth
   }
 
-  getUCB1 () {
+  getUCB1 (playerId) { // TODO: custom ucb dependend on game knowledge
     if (this.visits === 0) { // first expand unvisited node
       return Number.POSITIVE_INFINITY
     }
-    if (!this.parent) { // root node
-      return 0
-    }
-    const C = 20 // exploration vs. exploitation
+    const C = 10 // exploration vs. exploitation
     const estimatedReward = this.reward / this.visits // score per visit
-    return estimatedReward + C * Math.sqrt(2 * Math.log(this.parent.visits) / this.visits)
+    const explorationBonus = Math.sqrt(2 * Math.log(this.parent.visits) / this.visits)
+    if (this.torres.activePlayer === playerId) {
+      return estimatedReward + C * explorationBonus
+    } else {
+      return estimatedReward - C * explorationBonus
+    }
   }
 
   getChildren () {
-    if (this.children === null) {
+    if (this.children === null) { // node has to be expanded
       if (this.move !== null) {
         makeMove(this.torres, this.move, this.torres.activePlayer)
       }
       const moves = shuffleArray(this.torres.getLegalMoves(this.torres.activePlayer))
+      // TODO: only add one new node per simulation ? -> space complexity
       this.children = moves.map(move =>
         new Node(Torres.assignInstances(JSON.parse(JSON.stringify(this.torres))), this, move, this.depth + 1))
     }
     return this.children
   }
 
+  // currently not used
   getWinner () { // TODO: in Torres as getWinner()
-    makeMove(this.torres, this.move, this.torres.activePlayer)
-    return this.torres.getPointsPerPlayer().reduce((iMax, points, i, arr) => points > arr[iMax] ? i : iMax, 0)
+    const ppp = this.torres.getPointsPerPlayer()
+    return ppp.reduce((iMax, points, i, arr) => points > arr[iMax] ? i : iMax, 0)
   }
 
   getReward (playerId) {
-    if (this.torres.gameRunning) {
-      makeMove(this.torres, this.move, this.torres.activePlayer)
-      console.log('still running')
-    }
-
-    // console.log(this.torres.getPointsPerPlayer())
-    return this.torres.getPointsPerPlayer().reduce((score, points, i) => i === playerId ? score + points : score - points, 0)
+    const ppp = this.torres.getPointsPerPlayer()
+    return ppp.reduce((score, points, i) => i === playerId ? score + points : score - points, 0)
   }
 
-  bestChild () {
-    return this.getChildren().reduce((prev, node) => node.getUCB1() > prev.getUCB1() ? node : prev)
+  bestChild (playerId) {
+    if (playerId === this.torres.activePlayer) {
+      return this.getChildren().reduce((prev, node) => node.getUCB1(playerId) > prev.getUCB1(playerId) ? node : prev) // argmax
+    } else {
+      return this.getChildren().reduce((prev, node) => node.getUCB1(playerId) < prev.getUCB1(playerId) ? node : prev) // argmin
+    }
   }
 }
 
