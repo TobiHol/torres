@@ -11,12 +11,11 @@ const myInfo = { id: null }
 const bestTurn = []
 
 async function myMove () {
-  const torres = await new Promise(resolve => {
-    send('status_request', ['game_state'])
-    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
-  })
-
   if (bestTurn.length === 0) {
+    const torres = await new Promise(resolve => {
+      send('status_request', ['game_state'])
+      messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
+    })
     mcts(torres, torres.activePlayer)
   }
   send('move', bestTurn.shift())
@@ -31,7 +30,7 @@ function mcts (torres, playerId, timeLimit = 20000) {
     rootNode.visits++
     // simulate game
     while (currentNode.getChildren().length !== 0) {
-      currentNode = currentNode.bestChild(playerId)
+      currentNode = currentNode.selectChild(playerId)
       currentNode.visits++
     }
     // const winner = currentNode.getWinner()
@@ -47,7 +46,7 @@ function mcts (torres, playerId, timeLimit = 20000) {
   currentNode = rootNode
   while (true) {
     // console.log(currentNode)
-    currentNode = currentNode.bestChild(playerId)
+    currentNode = currentNode.bestChild()
     bestTurn.push(currentNode.move)
     if (currentNode.move.action === 'turn_end') {
       break
@@ -70,7 +69,7 @@ class Node {
     if (this.visits === 0) { // first expand unvisited node
       return Number.POSITIVE_INFINITY
     }
-    const C = 10 // exploration vs. exploitation
+    const C = 5 // exploration vs. exploitation
     const estimatedReward = this.reward / this.visits // score per visit
     const explorationBonus = Math.sqrt(2 * Math.log(this.parent.visits) / this.visits)
     if (this.torres.activePlayer === playerId) {
@@ -85,7 +84,7 @@ class Node {
       if (this.move !== null) {
         makeMove(this.torres, this.move, this.torres.activePlayer)
       }
-      const moves = shuffleArray(this.torres.getLegalMoves(this.torres.activePlayer))
+      const moves = this.torres.getLegalMovesOrdered(this.torres.activePlayer)
       // TODO: only add one new node per simulation ? -> space complexity
       this.children = moves.map(move =>
         new Node(Torres.assignInstances(JSON.parse(JSON.stringify(this.torres))), this, move, this.depth + 1))
@@ -104,12 +103,16 @@ class Node {
     return ppp.reduce((score, points, i) => i === playerId ? score + points : score - points, 0)
   }
 
-  bestChild (playerId) {
+  selectChild (playerId) {
     if (playerId === this.torres.activePlayer) {
       return this.getChildren().reduce((prev, node) => node.getUCB1(playerId) > prev.getUCB1(playerId) ? node : prev) // argmax
     } else {
       return this.getChildren().reduce((prev, node) => node.getUCB1(playerId) < prev.getUCB1(playerId) ? node : prev) // argmin
     }
+  }
+
+  bestChild () {
+    return this.getChildren().reduce((prev, node) => (node.visits > prev.visits) ? node : prev)
   }
 }
 
