@@ -44,8 +44,7 @@ function mcts (torres, playerId, timeLimit = 20000) {
 
   // best moves until 'turn_end'
   currentNode = rootNode
-  while (true) {
-    // console.log(currentNode)
+  while (currentNode.getChildren().length !== 0) {
     currentNode = currentNode.bestChild()
     bestTurn.push(currentNode.move)
     if (currentNode.move.action === 'turn_end') {
@@ -134,7 +133,7 @@ function makeMove (torres, move, playerId) {
       break
   }
 }
-
+/*
 function shuffleArray (array) {
   let curId = array.length
   while (curId !== 0) {
@@ -146,7 +145,7 @@ function shuffleArray (array) {
   }
   return array
 }
-
+*/
 function send (type, data) {
   const message = {
     type: type,
