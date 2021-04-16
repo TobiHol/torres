@@ -16,20 +16,21 @@ async function myMove () {
       send('status_request', ['game_state'])
       messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
     })
-    mcts(torres, torres.activePlayer)
+    mcts(torres, torres.activePlayer, true)
   }
   send('move', bestTurn.shift())
 }
 
-function mcts (torres, playerId, timeLimit = 20000) {
+function mcts (torres, playerId, stopAtPhase = false, timeLimit = 20000) {
   const t0 = performance.now()
   const rootNode = new Node(torres, null, null, 0)
+  const startingPhase = rootNode.torres.phase
   let currentNode
   while (performance.now() - t0 < timeLimit && rootNode.getChildren().length > 1) { // limited time per move & break if only one move possible
     currentNode = rootNode
     rootNode.visits++
     // simulate game
-    while (currentNode.getChildren().length !== 0) {
+    while (currentNode.getChildren().length !== 0 && (!stopAtPhase || currentNode.phase === startingPhase)) {
       currentNode = currentNode.selectChild(playerId)
       currentNode.visits++
     }
@@ -51,6 +52,7 @@ function mcts (torres, playerId, timeLimit = 20000) {
       break
     }
   }
+  console.log('runs: ' + rootNode.visits)
 }
 
 class Node {
@@ -111,7 +113,7 @@ class Node {
   }
 
   bestChild () {
-    return this.getChildren().reduce((prev, node) => (node.visits > prev.visits) ? node : prev)
+    return this.getChildren().reduce((prev, node) => (node.reward / node.visits > prev.reward / prev.visits) ? node : prev)
   }
 }
 
