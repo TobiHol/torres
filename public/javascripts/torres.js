@@ -39,7 +39,7 @@ class Torres {
   static assignInstances (torres) {
     Object.setPrototypeOf(torres, Torres.prototype)
     Object.setPrototypeOf(torres._board, Board.prototype)
-    torres.playerList.forEach(player => {
+    torres._playerList.forEach(player => {
       Object.setPrototypeOf(player, Player.prototype)
     })
     return torres
