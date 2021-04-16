@@ -16,12 +16,12 @@ async function myMove () {
       send('status_request', ['game_state'])
       messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
     })
-    mcts(torres, torres.activePlayer, true)
+    mcts(torres)
   }
   send('move', bestTurn.shift())
 }
 
-function mcts (torres, playerId, stopAtPhase = false, timeLimit = 20000) {
+function mcts (torres, c = 20, stopAtPhase = false, timeLimit = 20000) {
   const t0 = performance.now()
   const rootNode = new Node(torres, null, null, 0)
   const startingPhase = rootNode.torres.phase
@@ -30,15 +30,19 @@ function mcts (torres, playerId, stopAtPhase = false, timeLimit = 20000) {
     currentNode = rootNode
     rootNode.visits++
     // simulate game
-    while (currentNode.getChildren().length !== 0 && (!stopAtPhase || currentNode.phase === startingPhase)) {
-      currentNode = currentNode.selectChild(playerId)
+    while (currentNode.getChildren().length !== 0) {
+      if (stopAtPhase && currentNode.torres.phase > 1 && currentNode.torres.phase !== startingPhase) {
+        break
+      }
+      currentNode = currentNode.selectChild(c)
       currentNode.visits++
     }
-    // const winner = currentNode.getWinner()
-    const reward = currentNode.getReward(playerId)
-    // backtrack and update winner statistics
+    const rewardPP = currentNode.getRewardPerPlayer()
+    // backtrack and update reward statistics
     while (currentNode) {
-      currentNode.reward += reward
+      for (let i = 0; i < rewardPP.length; i++) {
+        currentNode.rewardPerPlayer[i] += rewardPP[i]
+      }
       currentNode = currentNode.parent
     }
   }
@@ -53,6 +57,8 @@ function mcts (torres, playerId, stopAtPhase = false, timeLimit = 20000) {
     }
   }
   console.log('runs: ' + rootNode.visits)
+  // console.log(rootNode.rewardPerPlayer)
+  // console.log(rootNode.getChildren().map(c => c.visits))
 }
 
 class Node {
@@ -60,24 +66,20 @@ class Node {
     this.torres = torres
     this.parent = parent
     this.move = move
-    this.reward = 0 // always from point of view of playerId!
+    this.rewardPerPlayer = new Array(torres.numPlayers).fill(0)
     this.visits = 0
     this.children = null
     this.depth = depth
   }
 
-  getUCB1 (playerId) { // TODO: custom ucb dependend on game knowledge
+  getUCB1 (playerId, c) { // TODO: custom ucb dependend on game knowledge
     if (this.visits === 0) { // first expand unvisited node
       return Number.POSITIVE_INFINITY
     }
-    const C = 5 // exploration vs. exploitation
-    const estimatedReward = this.reward / this.visits // score per visit
+    // exploration vs. exploitation
+    const estimatedReward = this.rewardPerPlayer[playerId] / this.visits // score per visit
     const explorationBonus = Math.sqrt(2 * Math.log(this.parent.visits) / this.visits)
-    if (this.torres.activePlayer === playerId) {
-      return estimatedReward + C * explorationBonus
-    } else {
-      return estimatedReward - C * explorationBonus
-    }
+    return estimatedReward + c * explorationBonus
   }
 
   getChildren () {
@@ -93,27 +95,21 @@ class Node {
     return this.children
   }
 
-  // currently not used
-  getWinner () { // TODO: in Torres as getWinner()
+  getRewardPerPlayer () { //  = difference to best player
     const ppp = this.torres.getPointsPerPlayer()
-    return ppp.reduce((iMax, points, i, arr) => points > arr[iMax] ? i : iMax, 0)
+    const sortedP = [...ppp].sort()
+    const rpp = ppp.map(points => points === sortedP[sortedP.length - 1] ? points - sortedP[sortedP.length - 2] : points - sortedP[sortedP.length - 1])
+    return rpp
   }
 
-  getReward (playerId) {
-    const ppp = this.torres.getPointsPerPlayer()
-    return ppp.reduce((score, points, i) => i === playerId ? score + points : score - points, 0)
-  }
-
-  selectChild (playerId) {
-    if (playerId === this.torres.activePlayer) {
-      return this.getChildren().reduce((prev, node) => node.getUCB1(playerId) > prev.getUCB1(playerId) ? node : prev) // argmax
-    } else {
-      return this.getChildren().reduce((prev, node) => node.getUCB1(playerId) < prev.getUCB1(playerId) ? node : prev) // argmin
-    }
+  selectChild (c) {
+    const activePlayer = this.torres.activePlayer // TODO: correct?
+    return this.getChildren().reduce((prev, node) => node.getUCB1(activePlayer, c) > prev.getUCB1(activePlayer, c) ? node : prev)
   }
 
   bestChild () {
-    return this.getChildren().reduce((prev, node) => (node.reward / node.visits > prev.reward / prev.visits) ? node : prev)
+    const activePlayer = this.torres.activePlayer
+    return this.getChildren().reduce((prev, node) => (node.rewardPerPlayer[activePlayer] / node.visits > prev.rewardPerPlayer[activePlayer] / prev.visits) ? node : prev)
   }
 }
 
@@ -168,6 +164,7 @@ messageParser.on('error', (data) => {
 messageParser.on('game_start', (data) => {
   console.log('game started')
   myInfo.id = data.your_player_id
+
   if (data.your_player_id === 0) {
     // messageParser.emit('my_turn')
     myMove()
