@@ -18,9 +18,9 @@ app.use(logger('dev'))
   game init
 */
 
-const numPlayers = 2
+const numPlayers = 3
 const Torres = require('./public/javascripts/torres')
-const torres = new Torres(numPlayers, 'choice', 4, 4, 4, [0, 3, 12, 15])
+const torres = new Torres(numPlayers, 'choice', 6, 6, 4, [7, 10, 25, 28], [3, 3, 3], new Array(9).fill(3), 5, 3)
 
 // for testing
 const { performance } = require('perf_hooks')
