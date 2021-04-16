@@ -488,8 +488,8 @@ class Torres {
   }
 
   ascii () {
-    let str = 'Phase: ' + (this._gameRunning ? this._phase : '-') + '\n'
-    str += 'Round: ' + (this._gameRunning ? this._round : '-') + '\n'
+    let str = 'Phase: ' + (this._gameRunning ? this._phase + '/' + this._numPhases : '-') + '\n'
+    str += 'Round: ' + (this._gameRunning ? this._round + this._numRoundsPerPhase[this._phase - 1] : '-') + '\n'
     str += 'Starting Player: ' + (this._gameRunning ? this._startingPlayer : '-') + '\n'
     str += 'Active Player: ' + (this._gameRunning ? this._activePlayer : '-') + '\n\n'
     str += this._board.ascii() + '\n\n'
@@ -501,15 +501,18 @@ class Torres {
   }
 
   html () {
-    let str = 'Phase: ' + (this._gameRunning ? this._phase : '-') + '<br/>'
-    str += 'Round: ' + (this._gameRunning ? this._round : '-') + '<br/><br/>'
-    str += 'Starting Player: ' + (this._gameRunning ? this._startingPlayer : '-') + '<br/>'
-    str += 'Active Player: ' + (this._gameRunning ? this._activePlayer : '-') + '<br/><br/>'
-    str += this._board.html() + '<br/><br/>'
-    str += 'Players <br/>'
+    let str = '<div style="padding: 20px;">'
+    str += 'Phase: ' + (this._gameRunning ? (this._phase + '/' + this._numPhases) : '-') + '<br/>'
+    str += 'Round: ' + (this._gameRunning ? this._round + '/' + (this._phase === 0 ? '0' : this._numRoundsPerPhase[this._phase - 1]) : '-')
+    str += '<br/>'
+    str += '<div>'
+    str += '<br/>'
     for (const p of this._playerList) {
-      str += p.html(this._gameRunning, this._phase)
+      str += (p.id === this._activePlayer ? '>&ensp;' : '&emsp;') + p.html(this._gameRunning, this._phase)
     }
+    str += '<br/></div><div>'
+    str += this._board.html() + '<br/><br/>'
+    str += '</div></div>'
     return str
   }
 }

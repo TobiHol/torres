@@ -107,7 +107,8 @@ class Player {
   }
 
   html (gameRunning, phase) {
-    let str = 'ID: ' + this._id + '&emsp; Points: ' + this._points
+    let str = '<span style="color:' + this._color + '">▲</span> '
+    str += 'ID: ' + this._id + '&emsp; Points: ' + this._points
     if (gameRunning && phase > 0) {
       str += '&emsp; AP: ' + this._ap + '&emsp; Knights: ' + this._numKnights + '&emsp; Blocks: ' + this._numBlocks
     }
