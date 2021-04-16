@@ -57,6 +57,10 @@ class Torres {
     return this._playerList[id]
   }
 
+  get numPlayers () {
+    return this._numPlayers
+  }
+
   get playerColors () {
     return this._playerColors
   }
