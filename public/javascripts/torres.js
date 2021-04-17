@@ -315,6 +315,15 @@ class Torres {
     return this._playerList.map(p => p.points)
   }
 
+  getRewardPerPlayer () { // difference to best player
+    const ppp = this.getPointsPerPlayer()
+    const sortedP = [...ppp].sort()
+    const rpp = ppp.map(points => points === sortedP[sortedP.length - 1]
+      ? points - sortedP[sortedP.length - 2]
+      : points - sortedP[sortedP.length - 1])
+    return rpp
+  }
+
   getLegalMoves (playerId, nullMove = false) {
     if (nullMove && this._gameRunning && this._activePlayer !== playerId) {
       return [{ action: 'null_move' }]
@@ -439,6 +448,94 @@ class Torres {
     }
     legalMovesPrio.push(...legalMoves)
     return legalMovesPrio
+  }
+
+  getRandomLegalMove () {
+    const legalMoves = []
+    const bias = []
+
+    const player = this._playerList[this._activePlayer]
+    // end turn
+    if (this._phase > 0 || this._placedInitKnights[this._activePlayer]) {
+      legalMoves.push({ action: 'turn_end' })
+      bias.push(5)
+    }
+    // place init knight
+    if (this._phase === 0 && !this._placedInitKnights[this._activePlayer]) {
+      for (const square of this._board.squares.filter(s => s.height === 1 && s.knight === -1)) {
+        legalMoves.push({ action: 'knight_place', x: square.x, y: square.y })
+        bias.push(5)
+      }
+    }
+    // get knight positions
+    const knightSquares = this._board.getKnightSquares(this._activePlayer)
+    const highestKnights = {}
+    for (const ks of knightSquares) {
+      if (ks.castle !== -1) {
+        if (!(ks.castle in highestKnights) || ks.height > highestKnights[ks.castle]) {
+          highestKnights[ks.castle] = ks.height
+        }
+      }
+    }
+    if (this._phase > 0 && player.ap > 0) {
+      // move knight
+      if (player.canMoveKnight()) {
+        for (const square of knightSquares) {
+          // find destinations for knight
+          for (let destX = 0; destX < this._board.width; destX++) {
+            for (let destY = 0; destY < this._board.height; destY++) {
+              if (this._board.canMoveKnight(square.x, square.y, destX, destY, this._activePlayer)) {
+                legalMoves.push({ action: 'knight_move', x: square.x, y: square.y, destX, destY })
+                const destSquare = this._board.getSquare(destX, destY)
+                if (destSquare.castle !== -1 && destSquare.height > square.height &&
+                  (!(destSquare.castle in highestKnights) || destSquare.height > highestKnights[destSquare.castle])) { // knight will become highest on castle
+                  bias.push(20)
+                } else {
+                  bias.push(1)
+                }
+              }
+            }
+          }
+        }
+      }
+      // place knight
+      if (player.canPlaceKnight()) {
+        for (const square of knightSquares) {
+          for (const n of this._board.getNeighbors(square.x, square.y)) {
+            if (n.knight === -1 && n.height <= square.height) {
+              legalMoves.push({ action: 'knight_place', x: n.x, y: n.y })
+              bias.push(5)
+            }
+          }
+        }
+      }
+      // place block
+      if (player.canPlaceBlock()) {
+        for (let x = 0; x < this._board.width; x++) {
+          for (let y = 0; y < this._board.height; y++) {
+            const placement = this._board.canPlaceBlock(x, y)
+            if (placement) {
+              legalMoves.push({ action: 'block_place', x, y })
+              if (placement.castleId in highestKnights) { // one of the player's castles
+                if (this._board.hasKnightAsNeighbor(placement.square, this.activePlayer)) {
+                  bias.push(10)
+                } else {
+                  bias.push(3)
+                }
+              } else {
+                bias.push(1)
+              }
+            }
+          }
+        }
+      }
+    }
+    let sum = 0
+    const cumulativeBias = bias.map((x) => { sum += x; return sum })
+    const choice = Math.floor(Math.random() * sum)
+    let chosenIndex = null
+    cumulativeBias.some((el, i) => el > choice ? ((chosenIndex = i), true) : false)
+    return legalMoves[chosenIndex]
   }
 
   getLegalMovesLimited (playerId, nullMove = false) {

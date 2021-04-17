@@ -66,6 +66,15 @@ class Board {
     return neighbors.filter(x => x) // filter null
   }
 
+  hasKnightAsNeighbor (square, playerId) {
+    for (const n of this.getNeighbors(square.x, square.y)) {
+      if (n.knight === playerId) {
+        return true
+      }
+    }
+    return false
+  }
+
   getKnightSquares (playerId) {
     return this._squares.filter(square => square.knight === playerId)
   }
@@ -92,7 +101,6 @@ class Board {
   }
 
   placeBlock (square, castleId) {
-    // console.log(castleId)
     square.height += 1
     square.castle = castleId
     if (square.height === 1) {
@@ -104,7 +112,6 @@ class Board {
     const square = this.getSquare(x, y)
     square.height -= 1
     if (square.height === 0) {
-      // console.log(square.castle)
       this._castleSizes[square.castle] -= 1
       square.castle = -1
     }
