@@ -21,95 +21,112 @@ async function myMove () {
   send('move', bestTurn.shift())
 }
 
-function mcts (torres, c = 20, stopAtPhase = false, timeLimit = 20000) {
+function mcts (torres, c = 10, timeLimit = 20000) {
   const t0 = performance.now()
-  const rootNode = new Node(torres, null, null, 0)
-  const startingPhase = rootNode.torres.phase
-  let currentNode
-  while (performance.now() - t0 < timeLimit && rootNode.getChildren().length > 1) { // limited time per move & break if only one move possible
-    currentNode = rootNode
-    rootNode.visits++
-    // simulate game
-    while (currentNode.getChildren().length !== 0) {
-      if (stopAtPhase && currentNode.torres.phase > 1 && currentNode.torres.phase !== startingPhase) {
-        break
-      }
-      currentNode = currentNode.selectChild(c)
-      currentNode.visits++
+  const firstMoves = torres.getLegalMovesOrdered(torres.activePlayer).reverse()
+  const rootNode = new Node(torres, null, null, firstMoves, 0)
+  // const startingPhase = rootNode.torres.phase
+  let currentNode, currentTorres, rewardPerPlayer
+  while (performance.now() - t0 < timeLimit) { // limited time per move & break if only one move possible
+    currentNode = treePolicy(rootNode, c)
+    if (rootNode.untriedMoves.length === 0 && rootNode.children.length <= 1) { // only one possible move
+      break
     }
-    const rewardPP = currentNode.getRewardPerPlayer()
-    // backtrack and update reward statistics
-    while (currentNode) {
-      for (let i = 0; i < rewardPP.length; i++) {
-        currentNode.rewardPerPlayer[i] += rewardPP[i]
-      }
-      currentNode = currentNode.parent
+    currentTorres = cloneTorres(currentNode.torres)
+    rewardPerPlayer = defaultPolicy(currentTorres)
+    backup(currentNode, rewardPerPlayer)
+  }
+  fillBestTurn(rootNode)
+  console.log('runs: ' + rootNode.visits)
+}
+
+function cloneTorres (torres) {
+  return Torres.assignInstances(JSON.parse(JSON.stringify(torres)))
+}
+
+function treePolicy (rootNode, c) {
+  let node = rootNode
+  while (node.torres.gameRunning) { // non-terminal
+    if (node.untriedMoves.length !== 0) { // not fully expanded
+      return node.expand()
+    } else {
+      node = node.selectChild(c)
     }
   }
+  return node
+}
 
-  // best moves until 'turn_end'
-  currentNode = rootNode
-  while (currentNode.getChildren().length !== 0) {
-    currentNode = currentNode.bestChild()
-    bestTurn.push(currentNode.move)
-    if (currentNode.move.action === 'turn_end') {
+function defaultPolicy (torres) {
+  let move
+  while (torres.gameRunning) {
+    move = torres.getRandomLegalMove(torres.activePlayer)
+    makeMove(torres, move, torres.activePlayer)
+  }
+  return torres.getRewardPerPlayer()
+}
+
+function backup (node, rewardPP) {
+  while (node) {
+    node.visits++
+    for (let i = 0; i < rewardPP.length; i++) {
+      node.rewardPerPlayer[i] += rewardPP[i]
+    }
+    node = node.parent
+  }
+}
+
+function fillBestTurn (rootNode) {
+  // best moves until 'turn_end' or too much uncertainty
+  let node = rootNode
+  while (true) {
+    node = node.bestChild()
+    bestTurn.push(node.move)
+    if (node.visits < 200 || node.move.action === 'turn_end') {
       break
     }
   }
-  console.log('runs: ' + rootNode.visits)
-  // console.log(rootNode.rewardPerPlayer)
-  // console.log(rootNode.getChildren().map(c => c.visits))
 }
 
 class Node {
-  constructor (torres, parent, move, depth) {
+  constructor (torres, parent, move, untriedMoves, depth) {
     this.torres = torres
     this.parent = parent
-    this.move = move
+    this.move = move // previous move (that led to this state)
+    this.untriedMoves = untriedMoves // legal moves for which no child exists
     this.rewardPerPlayer = new Array(torres.numPlayers).fill(0)
     this.visits = 0
-    this.children = null
+    this.children = []
     this.depth = depth
   }
 
-  getUCB1 (playerId, c) { // TODO: custom ucb dependend on game knowledge
-    if (this.visits === 0) { // first expand unvisited node
-      return Number.POSITIVE_INFINITY
-    }
+  expand () {
+    const nextMove = this.untriedMoves.pop()
+    const torres = cloneTorres(this.torres)
+    makeMove(torres, nextMove, torres.activePlayer)
+    const newMoves = torres.getLegalMovesOrdered(torres.activePlayer).reverse()
+    const child = new Node(torres, this, nextMove, newMoves, this.depth + 1)
+    this.children.push(child)
+    return child
+  }
+
+  getUCB1 (playerId, c) { // TODO: add bias based on moves
     // exploration vs. exploitation
     const estimatedReward = this.rewardPerPlayer[playerId] / this.visits // score per visit
     const explorationBonus = Math.sqrt(2 * Math.log(this.parent.visits) / this.visits)
     return estimatedReward + c * explorationBonus
   }
 
-  getChildren () {
-    if (this.children === null) { // node has to be expanded
-      if (this.move !== null) {
-        makeMove(this.torres, this.move, this.torres.activePlayer)
-      }
-      const moves = this.torres.getLegalMovesOrdered(this.torres.activePlayer)
-      // TODO: only add one new node per simulation ? -> space complexity
-      this.children = moves.map(move =>
-        new Node(Torres.assignInstances(JSON.parse(JSON.stringify(this.torres))), this, move, this.depth + 1))
-    }
-    return this.children
-  }
-
-  getRewardPerPlayer () { //  = difference to best player
-    const ppp = this.torres.getPointsPerPlayer()
-    const sortedP = [...ppp].sort()
-    const rpp = ppp.map(points => points === sortedP[sortedP.length - 1] ? points - sortedP[sortedP.length - 2] : points - sortedP[sortedP.length - 1])
-    return rpp
-  }
-
   selectChild (c) {
-    const activePlayer = this.torres.activePlayer // TODO: correct?
-    return this.getChildren().reduce((prev, node) => node.getUCB1(activePlayer, c) > prev.getUCB1(activePlayer, c) ? node : prev)
+    const activePlayer = this.torres.activePlayer
+    return this.children.reduce((prev, node) => node.getUCB1(activePlayer, c) > prev.getUCB1(activePlayer, c) ? node : prev)
   }
 
   bestChild () {
-    const activePlayer = this.torres.activePlayer
-    return this.getChildren().reduce((prev, node) => (node.rewardPerPlayer[activePlayer] / node.visits > prev.rewardPerPlayer[activePlayer] / prev.visits) ? node : prev)
+    // const activePlayer = this.torres.activePlayer
+    return this.children.reduce((prev, node) =>
+      node.visits > prev.visits
+        ? node
+        : prev)
   }
 }
 
@@ -131,19 +148,7 @@ function makeMove (torres, move, playerId) {
       break
   }
 }
-/*
-function shuffleArray (array) {
-  let curId = array.length
-  while (curId !== 0) {
-    const randId = Math.floor(Math.random() * curId)
-    curId--
-    const tmp = array[curId]
-    array[curId] = array[randId]
-    array[randId] = tmp
-  }
-  return array
-}
-*/
+
 function send (type, data) {
   const message = {
     type: type,
