@@ -16,7 +16,7 @@ async function myMove () {
       send('status_request', ['game_state'])
       messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
     })
-    mcts(torres)
+    mcts(torres, 10000)
   }
   send('move', bestTurn.shift())
 }
@@ -59,7 +59,7 @@ function treePolicy (rootNode, c) {
 function defaultPolicy (torres) {
   let move
   while (torres.gameRunning) {
-    move = torres.getRandomLegalMove(torres.activePlayer)
+    move = torres.getRandomLegalMove()
     makeMove(torres, move, torres.activePlayer)
   }
   return torres.getRewardPerPlayer()
@@ -109,16 +109,19 @@ class Node {
     return child
   }
 
-  getUCB1 (playerId, c) { // TODO: add bias based on moves
-    // exploration vs. exploitation
+  getUCB1 (playerId, c) {
+    const bias = calculateBias(this.parent.torres, this.move) / this.visits // influence of bias decreases with number of visits
     const estimatedReward = this.rewardPerPlayer[playerId] / this.visits // score per visit
     const explorationBonus = Math.sqrt(2 * Math.log(this.parent.visits) / this.visits)
-    return estimatedReward + c * explorationBonus
+    return estimatedReward + c * explorationBonus + bias
   }
 
   selectChild (c) {
     const activePlayer = this.torres.activePlayer
-    return this.children.reduce((prev, node) => node.getUCB1(activePlayer, c) > prev.getUCB1(activePlayer, c) ? node : prev)
+    return this.children.reduce((prev, node) =>
+      node.getUCB1(activePlayer, c) > prev.getUCB1(activePlayer, c)
+        ? node
+        : prev)
   }
 
   bestChild () {
@@ -128,6 +131,22 @@ class Node {
         ? node
         : prev)
   }
+}
+
+function calculateBias (torres, move) {
+  let bias = 0
+  if (move.action === 'knight_move') {
+    if (torres.isMovingUp(move.x, move.y, move.destX, move.destY)) {
+      bias = 100 // TODO: adjust
+    }
+  } else if (move.action === 'block_place') {
+    if (torres.hasKnightAsNeighbor(move.x, move.y)) {
+      bias = 10 // TODO: adjust
+    }
+  } else if (move.action === 'turn_end') {
+    bias = -100 // TODO: adjust
+  }
+  return bias
 }
 
 function makeMove (torres, move, playerId) {
