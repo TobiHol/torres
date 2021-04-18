@@ -81,6 +81,10 @@ class Torres {
     return this._gameRunning
   }
 
+  setPlayerAI (playerId, ai) {
+    this._playerList[playerId].setAI(ai)
+  }
+
   resetGame () {
     this._playerList = [...Array(this._numPlayers).keys()].map(id => new Player({ id, color: this._playerColors[id], ...this._playerParams }))
     this._board = new Board(this._boardParams)
@@ -625,12 +629,14 @@ class Torres {
     let str = '<div style="padding: 20px;">'
     str += 'Phase: ' + (this._gameRunning ? (this._phase + '/' + this._numPhases) : '-') + '<br/>'
     str += 'Round: ' + (this._gameRunning ? this._round + '/' + (this._phase === 0 ? '0' : this._numRoundsPerPhase[this._phase - 1]) : '-')
-    str += '<br/>'
+    str += '<br/><br/>'
     str += '<div>'
-    str += '<br/>'
+    str += '<table border="1" width="70%"><tbody>'
+    str += '<tr><th>Turn</th><th>Player</th><th>ID</th><th>AI</th><th>AP</th><th>Blocks</th><th>Knights</th><th>Points</th></tr>'
     for (const p of this._playerList) {
-      str += (p.id === this._activePlayer ? '>&ensp;' : '&emsp;') + p.html(this._gameRunning, this._phase)
+      str += p.html(this._gameRunning, this._phase, this._activePlayer)
     }
+    str += '</tbody></table>'
     str += '<br/></div><div>'
     str += this._board.html() + '<br/><br/>'
     str += '</div></div>'

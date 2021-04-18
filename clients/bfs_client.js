@@ -5,9 +5,8 @@ const Torres = require('../public/javascripts/torres')
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
 
-const myInfo = { id: null }
+const myInfo = { id: null, ai: 'bfs' }
 
-// do stuff for own turn here.
 async function myMove () {
   const torres = await new Promise(resolve => {
     send('status_request', ['game_state'])
@@ -221,8 +220,8 @@ messageParser.on('error', (data) => {
 messageParser.on('game_start', (data) => {
   console.log('game started')
   myInfo.id = data.your_player_id
+  send('info', myInfo.ai)
   if (data.your_player_id === 0) {
-    // messageParser.emit('my_turn')
     myMove()
   }
 })
@@ -246,7 +245,6 @@ ws.on('open', () => {
 })
 
 ws.on('message', (message) => {
-  // console.log('received:', message.slice(0, 70))
   try {
     const json = JSON.parse(message)
     messageParser.emit(json.type, json.data)

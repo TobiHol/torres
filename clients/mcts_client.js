@@ -6,7 +6,7 @@ const Torres = require('../public/javascripts/torres')
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
 
-const myInfo = { id: null }
+const myInfo = { id: null, ai: 'mcts' }
 
 const bestTurn = []
 
@@ -242,9 +242,8 @@ messageParser.on('error', (data) => {
 messageParser.on('game_start', (data) => {
   console.log('game started')
   myInfo.id = data.your_player_id
-
+  send('info', myInfo.ai)
   if (data.your_player_id === 0) {
-    // messageParser.emit('my_turn')
     myMove()
   }
 })
@@ -254,7 +253,6 @@ messageParser.on('game_end', (data) => {
 })
 
 messageParser.on('move_update', (data) => {
-  // TODO this check only work for two players
   if ((data.next_player === myInfo.id)) {
     myMove()
   }
@@ -268,7 +266,6 @@ ws.on('open', () => {
 })
 
 ws.on('message', (message) => {
-  // console.log('received:', message.slice(0, 70))
   try {
     const json = JSON.parse(message)
     messageParser.emit(json.type, json.data)

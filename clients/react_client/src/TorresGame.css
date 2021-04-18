@@ -31,6 +31,11 @@ table, th, td {
   border-style: solid;
 }
 
+th, td {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
 .square {
   color: black;
   background: #fff;

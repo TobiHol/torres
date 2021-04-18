@@ -2,6 +2,7 @@ class Player {
   constructor ({ id, color, numKnights, apPerRound, blocksPerRound }) {
     this._id = id
     this._color = color
+    this._ai = null
 
     this._apPerRound = apPerRound
     this._blocksPerRound = blocksPerRound
@@ -32,6 +33,10 @@ class Player {
 
   get numBlocks () {
     return this._numBlocks
+  }
+
+  setAI (ai) {
+    this._ai = ai
   }
 
   resetAttributesTo ({ points, ap, numBlocks }) {
@@ -106,13 +111,22 @@ class Player {
     return str
   }
 
-  html (gameRunning, phase) {
-    let str = '<span style="color:' + this._color + '">▲</span> '
-    str += 'ID: ' + this._id + '&emsp; Points: ' + this._points
-    if (gameRunning && phase > 0) {
-      str += '&emsp; AP: ' + this._ap + '&emsp; Knights: ' + this._numKnights + '&emsp; Blocks: ' + this._numBlocks
-    }
-    str += '<br/>'
+  tableEntry (content, turnBasedOn = true) {
+    return '<td style="width:10%; text-align:center">' + (turnBasedOn ? content : '') + '</td>'
+  }
+
+  html (gameRunning, phase, activePlayer) {
+    const turnBasedOn = gameRunning && phase > 0
+    let str = '<tr>'
+    str += this.tableEntry(activePlayer === this._id ? '>' : '')
+    str += this.tableEntry('<span style="color:' + this._color + '">▲</span> ')
+    str += this.tableEntry(this._id)
+    str += this.tableEntry(this._ai ? this._ai : '')
+    str += this.tableEntry(this._ap, turnBasedOn)
+    str += this.tableEntry(this._numBlocks, turnBasedOn)
+    str += this.tableEntry(this._numKnights, turnBasedOn)
+    str += this.tableEntry(this._points)
+    str += '</tr>'
     return str
   }
 }

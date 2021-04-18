@@ -18,9 +18,9 @@ app.use(logger('dev'))
   game init
 */
 
-const numPlayers = 3
+const numPlayers = 4
 const Torres = require('./public/javascripts/torres')
-const torres = new Torres(numPlayers, 'choice', 6, 6, 4, [7, 10, 25, 28], [3, 3, 3], new Array(9).fill(3), 5, 3)
+const torres = new Torres(numPlayers, 'choice')
 
 // for testing
 const { performance } = require('perf_hooks')
@@ -126,6 +126,9 @@ wss.on('connection', (ws) => {
       case 'status_request':
         onRequest()
         break
+      case 'info':
+        onInfo()
+        break
       default:
         break
     }
@@ -196,6 +199,11 @@ wss.on('connection', (ws) => {
             break
         }
       }
+    }
+    function onInfo () {
+      const ai = json.data
+      const playerId = getPlayerId(ws)
+      torres.setPlayerAI(playerId, ai)
     }
   })
   ws.on('close', () => {

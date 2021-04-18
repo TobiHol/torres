@@ -244,7 +244,7 @@ class Board {
   }
 
   html () {
-    let str = '<table width="300" height="300" border="2">'
+    let str = '<table width="400" height="400" border="2">'
     for (let i = 0; i < this._squares.length; i++) {
       if (i % this._width === 0) str += '<tr>'
       const square = this._squares[i]

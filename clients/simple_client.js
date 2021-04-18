@@ -5,9 +5,8 @@ const Torres = require('../public/javascripts/torres')
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
 
-const myInfo = { id: null }
+const myInfo = { id: null, ai: 'random' }
 
-// do stuff for own turn here.
 async function myMove () {
   const torres = await new Promise(resolve => {
     send('status_request', ['game_state'])
@@ -43,8 +42,8 @@ messageParser.on('error', (data) => {
 messageParser.on('game_start', (data) => {
   console.log('game started')
   myInfo.id = data.your_player_id
+  send('info', myInfo.ai)
   if (data.your_player_id === 0) {
-    // messageParser.emit('my_turn')
     myMove()
   }
 })
@@ -54,7 +53,6 @@ messageParser.on('game_end', (data) => {
 })
 
 messageParser.on('move_update', (data) => {
-  // TODO this check only work for two players
   if ((data.next_player === myInfo.id)) {
     myMove()
   }

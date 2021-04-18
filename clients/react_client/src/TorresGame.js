@@ -21,6 +21,22 @@ function Button(props) {
 
 class Game extends React.Component {
 
+  constructor(props) {
+    super(props)
+    this.myInfo = { id: null }
+    this.state = {
+      torres: null,
+      legalMoves: [],
+      move: {
+        action: null,
+        x: null,
+        y: null,
+        destX: null,
+        destY: null
+      }
+    }
+  }
+
   componentDidMount() {
     const events = require('events')
 
@@ -98,22 +114,6 @@ class Game extends React.Component {
     ws.onclose = (code, reason) => {
       console.log('disconnected', code, reason)
     }
-  }
-
-  constructor(props) {
-    super(props);
-    this.myInfo = { id: null }
-    this.state = {
-      torres: null,
-      legalMoves: [],
-      move: {
-        action: null,
-        x: null,
-        y: null,
-        destX: null,
-        destY: null
-      }
-    };
   }
   
   handleClick(i) {
@@ -226,6 +226,7 @@ class Game extends React.Component {
         <th>Turn</th>
         <th>Player</th>
         <th>ID</th>
+        <th>AI</th>
         <th>AP</th>
         <th>Blocks</th>
         <th>Knights</th>
@@ -233,13 +234,14 @@ class Game extends React.Component {
       </tr>
     )
     let data = torres._playerList.map(player => {
-      const {_id, _color, _numKnights, _ap, _numBlocks, _points} = player
+      const {_id, _ai, _color, _numKnights, _ap, _numBlocks, _points} = player
       return (
         <tr key={_id}>
           <td>{torres._activePlayer === _id ? '>' : ''}</td>
           {/* <td style={{'backgroundColor':colors[_id+1]}}></td> */}
           <td><span style={{color:_color}}>▲</span></td>
           <td>{_id}</td>
+          <td>{_ai}</td>
           <td>{_ap}</td>
           <td>{_numBlocks}</td>
           <td>{_numKnights}</td>
@@ -269,7 +271,7 @@ class Game extends React.Component {
         <br/>
         Phase: {torres._phase}/{torres._numPhases}
         <br/>
-        Round: {torres._round}/{torres._numRoundsPerPhase[torres._phase-1]}
+        Round: {torres._round}/{torres._phase === 0 ? 0 : torres._numRoundsPerPhase[torres._phase-1]}
         <br/>
       </div>
     )
