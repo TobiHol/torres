@@ -181,12 +181,19 @@ class Game extends React.Component {
     return res
   }
 
+  renderMove (move) {
+    const start = move.x || move.x === 0 ? ': (' + move.x + ',' + move.y + ')' : ''
+    const dest = move.destX || move.destX === 0 ? ' -> (' + move.destX + ',' + move.destY + ')' : ''
+    const action = move.action.split('_')
+    return action[1] + ' ' + action[0] + start + dest
+  }
+
   renderLegalMoves(){
     if (!this.state.torres._gameRunning) {
       return 'game is not running'
     }
     if (this.state.torres._activePlayer !== this.myInfo.id) {
-      return "not your turn"
+      return 'not your turn'
     }
     let myMove = this.state.move
     let legalMoves = this.state.legalMoves
@@ -199,7 +206,7 @@ class Game extends React.Component {
       } else {
         renderedMoves.push(
           <Button
-            value={JSON.stringify(move)}
+            value={this.renderMove(move)}
             onClick={() => {
               this.send('move', move)
               this.setState({
@@ -291,11 +298,11 @@ class Game extends React.Component {
           <br/>
           {this.renderPlayerTable()}
         </div>
+        <br/>
         <div className='game-board'>
           {this.renderAllSquares()}
         </div>
         <div className='game-action'>
-          {JSON.stringify(this.state.move)}
           <br/>
           {this.renderLegalMoves()}
         </div>
