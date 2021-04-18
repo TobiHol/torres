@@ -16,9 +16,11 @@ async function myMove () {
       send('status_request', ['game_state'])
       messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
     })
-    oep(torres, 10000)
+    oep(torres, 100, 10000)
   }
-  send('move', bestTurn.shift())
+  if (bestTurn.length > 0) {
+    send('move', bestTurn.shift())
+  }
 }
 
 function oep (torres, popSize = 100, timeLimit = 20000) {
@@ -39,7 +41,7 @@ function oep (torres, popSize = 100, timeLimit = 20000) {
   bestTurn.push(...population[0].moves)
 }
 
-function init (pop, popSize, torres) {
+function init (pop, popSize, torres) { // TODO: 20% greedy, rest completly random
   for (let i = 0; i < popSize; i++) {
     const clonedT = cloneTorres(torres)
     const g = new Genome(randomTurn(clonedT))
@@ -134,6 +136,9 @@ function mutate (moves, torres) {
       break
     }
   }
+  if (idx === moves.length - 1 && moves[idx].action !== 'turn_end') { // last element mutated
+    moves.push({ action: 'turn_end' })
+  }
   return moves
 }
 
@@ -148,10 +153,7 @@ class Genome {
     if (this.visits === 0) {
       const clonedT = cloneTorres(torres)
       for (const move of this.moves) {
-        const valid = makeMove(clonedT, move, clonedT.activePlayer)
-        if (!valid) {
-          throw 'err' // TODO
-        }
+        makeMove(clonedT, move, clonedT.activePlayer)
       }
       this.fitness = clonedT.getRewardPerPlayer(true)[myInfo.id]
     }

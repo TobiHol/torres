@@ -27,7 +27,7 @@ async function myMove () {
   send('move', bestTurn.shift())
 }
 
-function mcts (torres, c = 10, timeLimit = 20000) {
+function mcts (torres, c = 10, timeLimit = 10000) {
   const t0 = performance.now()
   const firstMoves = torres.getLegalMovesOrdered(torres.activePlayer).reverse()
   const rootNode = new Node(torres, null, null, firstMoves, 0)
@@ -45,7 +45,7 @@ function mcts (torres, c = 10, timeLimit = 20000) {
   console.log('runs: ' + rootNode.visits)
 }
 
-function nonexMcts (torres, timeLimit = 20000) {
+function nonexMcts (torres, timeLimit = 10000) {
   const t0 = performance.now()
   const firstMoves = torres.getLegalMovesOrdered(torres.activePlayer).reverse()
   const rootNode = new Node(torres, null, null, firstMoves, 0)
@@ -60,7 +60,7 @@ function nonexMcts (torres, timeLimit = 20000) {
   console.log('runs: ' + rootNode.visits)
 }
 
-function bbMcts (torres, timeLimit = 20000) {
+function bbMcts (torres, timeLimit = 10000) {
   const t0 = performance.now()
   let t1 = t0
   const firstMoves = torres.getLegalMovesOrdered(torres.activePlayer).reverse()
@@ -130,10 +130,11 @@ function fillBestTurn (rootNode) {
   // best moves until 'turn_end'
   let node = rootNode
   while (bestTurn.length === 0 || bestTurn[bestTurn.length - 1].action !== 'turn_end') {
-    node = node.bestChild()
-    bestTurn.push(node.move)
-    if (node.visits < 10) {
-      break
+    if (node.children.length === 0) {
+      bestTurn.push({ action: 'turn_end' })
+    } else {
+      node = node.bestChild()
+      bestTurn.push(node.move)
     }
   }
 }
@@ -179,7 +180,6 @@ class Node {
   }
 
   bestChild () {
-    // const activePlayer = this.torres.activePlayer
     return this.children.reduce((prev, node) =>
       node.visits > prev.visits
         ? node
