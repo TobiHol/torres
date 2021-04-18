@@ -23,13 +23,12 @@ async function myMove () {
   ttLength = 0
   lookup = 0
   cutoffs = 0
-  // let bestMove
-  const bestMove = negamax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, torres.activePlayer, true)
-  /* if (!torres.activePlayer) {
-    bestMove = negamax(torres, torres.activePlayer, 2, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, torres.activePlayer, true, false)
+  let bestMove
+  if (torres.numPlayers === 2) {
+    bestMove = negamax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, torres.activePlayer, true)
   } else {
-    bestMove = negamax(torres, torres.activePlayer, 2, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, torres.activePlayer, true, true)
-  } */
+    bestMove = minimax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
+  }
   const t1 = performance.now()
   console.log(bestMove)
   console.log('time: ' + (t1 - t0) + 'ms')
@@ -43,7 +42,6 @@ async function myMove () {
   }
 }
 
-/*
 function minimax (torres, playerId, depth, alpha, beta) {
   if (depth === 0 || !torres.gameRunning) { // should always be at end of turn
     const moveValue = {
@@ -95,7 +93,7 @@ function minimax (torres, playerId, depth, alpha, beta) {
     }
   }
   return bestMove
-} */
+}
 
 function negamax (torres, playerId, depth, alpha, beta, prevPlayer, ordered, fast = false) {
   if (depth === 0 || !torres.gameRunning) {
@@ -158,7 +156,7 @@ function negamax (torres, playerId, depth, alpha, beta, prevPlayer, ordered, fas
     }
   }
   // transposition table store
-  if (tt && ttLength < 5000000) {
+  if (tt && ttLength < 1000000) {
     const ttEntry = {}
     ttEntry.value = value
     if (value <= a) {
@@ -172,7 +170,7 @@ function negamax (torres, playerId, depth, alpha, beta, prevPlayer, ordered, fas
     tt[gameState] = ttEntry
     ttLength++
   }
-  if (ttLength === 4999999) {
+  if (ttLength === 999999) {
     console.log('full')
   }
 
