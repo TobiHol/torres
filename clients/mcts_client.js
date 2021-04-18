@@ -8,7 +8,7 @@ const messageParser = new events.EventEmitter()
 
 const myInfo = { id: null, ai: 'mcts' }
 
-const bestTurn = []
+let bestTurn = []
 
 async function myMove () {
   if (bestTurn.length === 0) {
@@ -243,6 +243,7 @@ messageParser.on('game_start', (data) => {
   console.log('game started')
   myInfo.id = data.your_player_id
   send('info', myInfo.ai)
+  bestTurn = []
   if (data.your_player_id === 0) {
     myMove()
   }
