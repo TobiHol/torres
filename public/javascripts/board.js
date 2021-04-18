@@ -79,6 +79,43 @@ class Board {
     return this._squares.filter(square => square.knight === playerId)
   }
 
+  // TODO: keep track of it while playing?
+  getKnightPositionsOfPlayer (playerId) { // squares with player's knights and highest knights per castle
+    const knightSquares = this._squares.filter(square => square.knight === playerId)
+    const highestKnights = {}
+    for (const ks of knightSquares) {
+      if (ks.castle !== -1) {
+        if (!(ks.castle in highestKnights) || ks.height > highestKnights[ks.castle]) {
+          highestKnights[ks.castle] = ks.height
+        }
+      }
+    }
+    return { squares: knightSquares, highest: highestKnights }
+  }
+
+  getHighestKnightsPerCastle () {
+    const knightsOnCastles = this._squares.filter(square => square.castle !== -1 && square.knight !== -1)
+    const highestKnights = new Array(this._numCastles).fill({ knight: -1, height: -1 })
+    for (const square of knightsOnCastles) {
+      const hk = highestKnights[square.castle]
+      if (hk.knight === -1 || square.height > hk.height) {
+        hk.knight = square.knight
+        hk.height = square.height
+      }
+    }
+    return highestKnights
+  }
+
+  isMovingUp (x, y, destX, destY) {
+    const startSquare = this.getSquare(x, y)
+    const destSquare = this.getSquare(destX, destY)
+    if (destSquare.castle === -1 || destSquare.height <= startSquare.height) return false
+    const higherKnights = this._squares.filter(square =>
+      square.castle === destSquare.castle && square.knight === startSquare.knight && square.height >= destSquare.height)
+    if (higherKnights.length !== 0) return false
+    return true
+  }
+
   canPlaceBlock (x, y) {
     const square = this.getSquare(x, y)
     if (!square) return false
