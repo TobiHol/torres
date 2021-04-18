@@ -170,7 +170,6 @@ class Torres {
       if (!placement) return false
       this._board.placeKnight(placement.square, playerId)
       this._placedInitKnights[playerId] = true
-      // this.endTurn(playerId)
     }
 
     return true
@@ -315,8 +314,13 @@ class Torres {
     return this._playerList.map(p => p.points)
   }
 
-  getRewardPerPlayer () { // difference to best player
-    const ppp = this.getPointsPerPlayer()
+  getRewardPerPlayer (evalFirst = false) { // difference to best player
+    let ppp
+    if (evalFirst) {
+      ppp = this.evaluateState()
+    } else {
+      ppp = this.getPointsPerPlayer()
+    }
     const sortedP = [...ppp].sort()
     const rpp = ppp.map(points => points === sortedP[sortedP.length - 1]
       ? points - sortedP[sortedP.length - 2]
@@ -465,7 +469,7 @@ class Torres {
     return legalMovesPrio1.concat(legalMovesPrio2, legalMovesPrio3)
   }
 
-  getRandomLegalMove () {
+  getRandomLegalMove (biasTurnEnd = 40) {
     const legalMoves = []
     const bias = []
 
@@ -473,13 +477,13 @@ class Torres {
     // end turn
     if (this._phase > 0 || this._placedInitKnights[this._activePlayer]) {
       legalMoves.push({ action: 'turn_end' })
-      bias.push(20)
+      bias.push(biasTurnEnd)
     }
     // place init knight
     if (this._phase === 0 && !this._placedInitKnights[this._activePlayer]) {
       for (const square of this._board.squares.filter(s => s.height === 1 && s.knight === -1)) {
         legalMoves.push({ action: 'knight_place', x: square.x, y: square.y })
-        bias.push(5)
+        bias.push(1)
       }
     }
     if (this._phase > 0 && player.ap > 0) {
@@ -496,7 +500,7 @@ class Torres {
                 const destSquare = this._board.getSquare(destX, destY)
                 if (destSquare.castle !== -1 && destSquare.height > square.height &&
                   (!(destSquare.castle in knightPos.highest) || destSquare.height > knightPos.highest[destSquare.castle])) { // knight will become highest on castle
-                  bias.push(50)
+                  bias.push(100)
                 } else {
                   bias.push(1)
                 }
@@ -527,7 +531,7 @@ class Torres {
               if (placement.castleId in knightPos.highest) { // one of the player's castles
                 if (highestPerCastle[placement.castleId] === this._activePlayer ||
                   this._board.hasKnightAsNeighbor(placement.square, this.activePlayer)) {
-                  bias.push(10)
+                  bias.push(20)
                 } else {
                   bias.push(3)
                 }
@@ -545,6 +549,17 @@ class Torres {
     let chosenIndex = null
     cumulativeBias.some((el, i) => el > choice ? ((chosenIndex = i), true) : false)
     return legalMoves[chosenIndex]
+  }
+
+  getDeterministicLegalMove () {
+    /*
+    if (this._phase === 0 && !this._placedInitKnights[this._activePlayer]) {
+      const firstFreePlace = this._board.squares.filter(s => s.height === 1 && s.knight === -1)[0]
+      return { action: 'knight_place', x: firstFreePlace.x, y: firstFreePlace.y }
+    }
+    return { action: 'turn_end' }
+    */
+    return this.getLegalMovesOrdered()[0]
   }
 
   getLegalMovesLimited (playerId, nullMove = false) {
