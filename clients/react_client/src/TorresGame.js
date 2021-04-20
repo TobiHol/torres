@@ -245,7 +245,6 @@ class Game extends React.Component {
       return (
         <tr key={_id}>
           <td>{torres._activePlayer === _id ? '>' : ''}</td>
-          {/* <td style={{'backgroundColor':colors[_id+1]}}></td> */}
           <td><span style={{color:_color}}>▲</span></td>
           <td>{_id}</td>
           <td>{_ai}</td>

@@ -626,12 +626,12 @@ class Torres {
   }
 
   html () {
-    let str = '<div style="padding: 20px;">'
+    let str = '<div align="center">'
     str += 'Phase: ' + (this._gameRunning ? (this._phase + '/' + this._numPhases) : '-') + '<br/>'
     str += 'Round: ' + (this._gameRunning ? this._round + '/' + (this._phase === 0 ? '0' : this._numRoundsPerPhase[this._phase - 1]) : '-')
     str += '<br/><br/>'
     str += '<div>'
-    str += '<table border="1" width="70%"><tbody>'
+    str += '<table border="1" width="400"><tbody>'
     str += '<tr><th>Turn</th><th>Player</th><th>ID</th><th>AI</th><th>AP</th><th>Blocks</th><th>Knights</th><th>Points</th></tr>'
     for (const p of this._playerList) {
       str += p.html(this._gameRunning, this._phase, this._activePlayer)
