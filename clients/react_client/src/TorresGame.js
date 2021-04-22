@@ -165,6 +165,14 @@ class Game extends React.Component {
 
     let height = board._squares[i].height
     let knight = board._squares[i].knight
+    let numCol
+    if (knight === -1) {
+      numCol = 'black'
+    } else if (knight === 'king') {
+      numCol = 'white'
+    } else {
+      numCol = this.state.torres._playerColors[knight]
+    }
     let borderColor = 'black'
     let borderWidth = '1px'
     if ((move.x + move.y * board._width === i && move.x !== null) || (move.destX + move.destY * board._width === i && move.destX !== null)) {
@@ -172,7 +180,7 @@ class Game extends React.Component {
       borderWidth = '2px'
     }
     let style = {
-      'color': (knight === -1 ? 'black' : this.state.torres._playerColors[knight]),
+      'color': numCol,
       'backgroundColor': height > 0 ? 'grey' : 'white',
       'borderColor': borderColor,
       'borderWidth': borderWidth
@@ -338,7 +346,7 @@ class Game extends React.Component {
     let torres = this.state.torres
     if (torres === null ) {
       return (
-        'No torres server found. \n refresh the site after starting the server.'
+        'No torres server found. \n Refresh the site after starting the server.'
       )
     }
     return (
