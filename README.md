@@ -96,6 +96,16 @@ server broadcast if move was valid and server updated game:
 }
 ```
 
+### Client Info
+client sends info about it to server
+
+{
+  "type": "info",
+  "data": {
+    "type": "human"
+  }
+}
+
 ### Status request
 server get a number of request:
 ```
@@ -104,7 +114,7 @@ server get a number of request:
   "data": [
     "game_state",
     "legal_moves",
-    ...
+    "player_info",
   ]
 }
 ```
@@ -116,13 +126,23 @@ server response to client for each request:
   "data": <torresObject>
 }
 ```
-### Game start/end 
-server start game
+
+```
+{
+  "type": "player_info_response"
+  "data": {
+    "playerStatus": ['disconnected', 'connected', ...]
+    "playerType": ['random_ai', 'human', ...]
+    "id": getPlayerId(client)
+  }
+}
+```
+### Game Info 
+messages from server when game starts/ends
 ```
 {
   "type": "game_start",
   "data": {
-    "your_player_id" : getPlayerId(client)
   }
 }
 ```
@@ -135,6 +155,36 @@ server end game
   }
 }
 ```
+server player connect
+```
+{
+  "type": "player_connect",
+  "data": {
+    "id" : 1
+  }
+}
+```
+server player disconnect
+```
+{
+  "type": "player_disconnect",
+  "data": {
+    "id" : 1
+  }
+}
+```
+
+### Commands
+commands that clients can send to the server
+
+to reset the game and then start a new one
+{
+  "type": "command"
+  "data": [
+    "game_reset",
+    "game_init"
+  ]
+}
 
 ### Error
 server response on error

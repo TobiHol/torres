@@ -69,14 +69,28 @@ app.post('/api', function (req, res) {
   res.send(torres.ascii())
 })
 
-/*
-  websocket API
-*/
+/**
+ * Websocket API
+ */
 
 let GAME_ON = false
 const PLAYERS = new Array(numPlayers).fill(null)
+const PLAYER_TYPES = new Array(numPlayers).fill(null)
 function getPlayerId (obj) {
   return PLAYERS.findIndex((o) => o === obj)
+}
+function playerStatus () {
+  return (PLAYERS.map(player => player ? 'connected' : 'disconnected'))
+}
+function playerType () {
+  return (PLAYER_TYPES.map(type => type || '-'))
+}
+
+function broadcast (message) {
+  wss.clients.forEach(function each (client) {
+    // if (client.readyState === WebSocket.OPEN) {
+    client.send(message)
+  })
 }
 
 wss.on('connection', (ws) => {
@@ -90,21 +104,14 @@ wss.on('connection', (ws) => {
     ws.close()
     return
   }
-  PLAYERS[getPlayerId(null)] = ws // assign client to player
-  // start game
-  if (wss.clients.size === numPlayers) {
-    start = performance.now()
-    torres.initGame()
-    GAME_ON = true
-    wss.clients.forEach(function each (client) {
-      client.send(JSON.stringify({
-        type: 'game_start',
-        data: {
-          your_player_id: getPlayerId(client)
-        }
-      }))
-    })
-  }
+  const id = getPlayerId(null)
+  PLAYERS[id] = ws // assign client to player
+  broadcast(JSON.stringify({
+    type: 'player_connect',
+    data: {
+      id: id
+    }
+  }))
   ws.on('message', (data) => {
     console.log('received:', data)
     let json = null
@@ -128,6 +135,9 @@ wss.on('connection', (ws) => {
         break
       case 'info':
         onInfo()
+        break
+      case 'command':
+        onCommand()
         break
       default:
         break
@@ -195,41 +205,69 @@ wss.on('connection', (ws) => {
               data: torres.getLegalMoves(torres.activePlayer)
             }))
             break
+          case 'player_info':
+            ws.send(JSON.stringify({
+              type: 'player_info_response',
+              data: {
+                player_status: playerStatus(),
+                player_type: playerType(),
+                id: getPlayerId(ws)
+              }
+            }))
+            break
           default:
             break
         }
       }
     }
     function onInfo () {
-      const ai = json.data
-      const playerId = getPlayerId(ws)
-      torres.setPlayerAI(playerId, ai)
+      const data = json.data
+      PLAYER_TYPES[getPlayerId(ws)] = data.type
+    }
+    function onCommand () {
+      const commands = json.data
+      for (const command of commands) {
+        switch (command) {
+          case 'game_reset':
+            if (GAME_ON) {
+              GAME_ON = false
+              broadcast(JSON.stringify({
+                type: 'game_end',
+                data: {
+                  winner: null
+                }
+              }))
+            }
+            torres.resetGame()
+            break
+          case 'game_init':
+            if (GAME_ON) break
+            start = performance.now()
+            torres.initGame()
+            GAME_ON = true
+            wss.clients.forEach(function each (client) {
+              client.send(JSON.stringify({
+                type: 'game_start'
+              }))
+            })
+            break
+          default:
+            break
+        }
+      }
     }
   })
   ws.on('close', () => {
-    torres.resetGame()
-    const playerId = getPlayerId(ws)
-    PLAYERS[playerId] = null // remove client form players
-    // broadcast(`Player ${playerId} disconnected.`)
-    // end game
-    if (GAME_ON) {
-      GAME_ON = false
-      broadcast(JSON.stringify({
-        type: 'game_end',
-        data: {
-          winner: null
-        }
-      }))
-    }
+    const id = getPlayerId(ws)
+    PLAYERS[id] = null // remove client form players
+    broadcast(JSON.stringify({
+      type: 'player_connect',
+      data: {
+        id: id
+      }
+    }))
   })
 })
-
-function broadcast (message) {
-  wss.clients.forEach(function each (client) {
-    // if (client.readyState === WebSocket.OPEN) {
-    client.send(message)
-  })
-}
 
 /*
   server setup
