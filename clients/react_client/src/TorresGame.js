@@ -317,12 +317,12 @@ class Game extends React.Component {
     gameInfo.push(<br/>)
     gameInfo.push(
       <div>
-        Phase: {torres._phase}/{torres._numPhases}
+        Phase: {torres._gameRunning ? torres._phase + '/' + torres._numPhases : '-'}
       </div>
     )
     gameInfo.push(
       <div>
-        Round: {torres._round}/{torres._phase === 0 ? 0 : torres._numRoundsPerPhase[torres._phase-1]}
+        Round: {torres._gameRunning ? torres._round + '/' + (torres._phase === 0 ? 0 : torres._numRoundsPerPhase[torres._phase-1]) : '-'}
       </div>
     )
     return gameInfo
