@@ -23,8 +23,8 @@ class Game extends React.Component {
 
   constructor(props) {
     super(props)
-    this.myInfo = { id: null }
     this.state = {
+      playerInfo: null,
       torres: null,
       legalMoves: [],
       move: {
@@ -33,7 +33,7 @@ class Game extends React.Component {
         y: null,
         destX: null,
         destY: null
-      }
+      },
     }
   }
 
@@ -46,6 +46,10 @@ class Game extends React.Component {
 
     // do stuff for own turn here.
     async function update () {
+      const playerInfo = await new Promise(resolve => {
+        _this.send('status_request', ['player_info'])
+        messageParser.once('player_info_response', (data) => resolve(data))
+      })
       const torresNoInstance = await new Promise(resolve => {
         _this.send('status_request', ['game_state'])
         messageParser.once('game_state_response', (data) => resolve(data))
@@ -55,8 +59,9 @@ class Game extends React.Component {
         messageParser.once('legal_moves_response', (data) => resolve(data))
       })
       _this.setState({
+        playerInfo: playerInfo,
         torres: torresNoInstance,
-        legalMoves:legalMoves
+        legalMoves: legalMoves,
       })
     }
 
@@ -79,12 +84,15 @@ class Game extends React.Component {
 
     messageParser.on('game_start', (data) => {
       console.log('game started')
-      this.myInfo.id = data.your_player_id
+      _this.setState({
+        id: data.your_player_id
+      })
       update()
     })
 
     messageParser.on('game_end', (data) => {
       console.log('game ended')
+      update()
     })
 
     messageParser.on('move_update', (data) => {
@@ -94,8 +102,17 @@ class Game extends React.Component {
     messageParser.on('move_response', (data) => {
     })
 
+    messageParser.on('player_connect', (data) => {
+      update()
+    })
+
+    messageParser.on('player_disconnect', (data) => {
+      update()
+    })
+
     ws.onopen = () => {
       console.log('connected')
+      update()
     }
 
     ws.onmessage = (message) => {
@@ -121,7 +138,7 @@ class Game extends React.Component {
     let x = i % board._width
     let y = Math.floor(i / board._width)
     let myMove = this.state.move
-    if (board._squares[myMove.x + myMove.y * board._width].knight !== this.myInfo.id || myMove.destX !== null) {
+    if (board._squares[myMove.x + myMove.y * board._width].knight !== this.state.playerInfo.id || myMove.destX !== null) {
       this.setState({
         move: {
           ...this.state.move,
@@ -192,7 +209,7 @@ class Game extends React.Component {
     if (!this.state.torres._gameRunning) {
       return 'game is not running'
     }
-    if (this.state.torres._activePlayer !== this.myInfo.id) {
+    if (this.state.torres._activePlayer !== this.state.playerInfo.id) {
       return 'not your turn'
     }
     let myMove = this.state.move
@@ -233,7 +250,8 @@ class Game extends React.Component {
         <th>Turn</th>
         <th>Player</th>
         <th>ID</th>
-        <th>AI</th>
+        <th>Status</th>
+        <th>Type</th>
         <th>AP</th>
         <th>Blocks</th>
         <th>Knights</th>
@@ -247,7 +265,8 @@ class Game extends React.Component {
           <td>{torres._activePlayer === _id ? '>' : ''}</td>
           <td><span style={{color:_color}}>▲</span></td>
           <td>{_id}</td>
-          <td>{_ai}</td>
+          <td>{this.state.playerInfo.player_status[_id]}</td>
+          <td>{this.state.playerInfo.player_type[_id]}</td>
           <td>{_ap}</td>
           <td>{_numBlocks}</td>
           <td>{_numKnights}</td>
@@ -272,7 +291,7 @@ class Game extends React.Component {
     let torres = this.state.torres
     return(
       <div>
-        You are the {torres._playerColors[this.myInfo.id]} Player <span style={{color:torres._playerColors[this.myInfo.id]}}>▲</span> (ID: {this.myInfo.id})
+        You are the {torres._playerColors[this.state.playerInfo.id]} Player <span style={{color:torres._playerColors[this.state.playerInfo.id]}}>▲</span> (ID: {this.state.playerInfo.id})
         <br/>
         <br/>
         Phase: {torres._phase}/{torres._numPhases}
@@ -283,15 +302,50 @@ class Game extends React.Component {
     )
   }
 
+  renderGameOptions(){
+    let options = []
+    if (this.state.torres._gameRunning) {
+      options.push(
+      <Button
+        value='End Game'
+        onClick={() => {
+          this.send('command', ['game_reset'])
+        }}
+        />
+      )
+      options.push(
+        <Button
+          value='Restart Game'
+          onClick={() => {
+            this.send('command', ['game_reset', 'game_init'])
+          }}
+          />
+      )
+    } else {
+      options.push(
+        <Button
+          value='Start Game'
+          onClick={() => {
+            this.send('command', ['game_reset', 'game_init'])
+          }}
+          />
+      )
+    }
+    return options
+  }
+
   render() {
     let torres = this.state.torres
     if (torres === null ) {
       return (
-        'Waiting'
+        'No torres server found. \n refresh the site after starting the server.'
       )
     }
     return (
       <div className='game'>
+        <div className='game-options'>
+          {this.renderGameOptions()}
+        </div>
         <div className='game-info'>
           {this.renderGameInfo()}
           <br/>
@@ -302,7 +356,6 @@ class Game extends React.Component {
           {this.renderAllSquares()}
         </div>
         <div className='game-action'>
-          <br/>
           {this.renderLegalMoves()}
         </div>
       </div>
