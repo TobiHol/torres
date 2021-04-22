@@ -38,7 +38,7 @@ function mcts (torres, c = 10, timeLimit = 10000) {
       break
     }
     currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres)
+    rewardPerPlayer = defaultPolicy(currentTorres, false, 0.5) // epsilon-greedy with epsilon = 0.5
     backup(currentNode, rewardPerPlayer)
   }
   fillBestTurn(rootNode)
@@ -53,7 +53,7 @@ function nonexMcts (torres, timeLimit = 10000) {
   while (performance.now() - t0 < timeLimit) {
     currentNode = treePolicy(rootNode, 0, 0.5)
     currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres, true)
+    rewardPerPlayer = defaultPolicy(currentTorres, true) // deterministic
     backup(currentNode, rewardPerPlayer)
   }
   fillBestTurn(rootNode)
@@ -78,9 +78,9 @@ function bbMcts (torres, timeLimit = 10000) {
       }
       rootNode.move = null
     }
-    currentNode = treePolicy(rootNode, 0)
+    currentNode = treePolicy(rootNode, 10)
     currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres, true, 0.5) // epsilon-greedy with epsilon = 0.5
+    rewardPerPlayer = defaultPolicy(currentTorres, false, 0.5) // epsilon-greedy with epsilon = 0.5
     backup(currentNode, rewardPerPlayer)
   }
   fillBestTurn(rootNode)
