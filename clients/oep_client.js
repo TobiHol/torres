@@ -16,18 +16,24 @@ async function myMove () {
       send('status_request', ['game_state'])
       messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
     })
-    oep(torres)
+    if (torres.gameRunning) {
+      if (myInfo.id < 2) {
+        oep(torres, false)
+      } else {
+        oep(torres, true)
+      }
+    }
   }
   if (bestTurn.length > 0) {
     send('move', bestTurn.shift())
   }
 }
 
-function oep (torres, popSize = 100, timeLimit = 10000) {
+function oep (torres, rollout = false, popSize = 100, timeLimit = 10000) {
   const t0 = performance.now()
   let runs = 0
   let population = []
-  init(population, popSize, torres)
+  init(population, popSize, torres, rollout)
   while (true) {
     runs++
     for (const g of population) { // TODO: delete?
@@ -51,17 +57,17 @@ function oep (torres, popSize = 100, timeLimit = 10000) {
       return true
     })
     population = population.slice(0, Math.ceil(l / 2)) // kill the worse half of the population (kill rate )
-    population = procreate(population, torres)
+    population = procreate(population, torres, rollout)
   }
   bestTurn.push(...population[0].moves)
   console.log('runs: ' + runs)
 }
 
-function init (pop, popSize, torres) {
+function init (pop, popSize, torres, rollout) {
   for (let i = 0; i < popSize; i++) {
     const clonedT = cloneTorres(torres)
-    const g = new Genome(randomTurn(clonedT, i < (popSize / 5))) // 20% greedy, rest completly random
-    g.calcFitness(clonedT)
+    const g = new Genome(randomTurn(clonedT, i < (popSize / 2))) // 50% greedy, rest completly random
+    g.calcFitness(clonedT, rollout)
     pop.push(g)
   }
 }
@@ -77,7 +83,7 @@ function randomTurn (torres, biased) {
   return turn
 }
 
-function procreate (pop, torres, pm = 0.1) {
+function procreate (pop, torres, rollout, pm = 0.1) {
   pop.sort(() => 0.5 - Math.random()) // shuffle pop
   const newPop = []
   while (pop.length > 1) {
@@ -94,7 +100,7 @@ function procreate (pop, torres, pm = 0.1) {
         child = mutate(child.moves, torres)
       }
       const g = new Genome(child.moves)
-      g.calcFitness(child.torres)
+      g.calcFitness(child.torres, rollout)
       newPop.push(g)
     }
   }
@@ -169,8 +175,15 @@ class Genome {
     this.fitness = null
   }
 
-  calcFitness (torres) {
+  calcFitness (torres, rollout) {
     if (this.age === -1) {
+      if (rollout) {
+        let move
+        while (torres.activePlayer !== myInfo.id && torres.gameRunning) {
+          move = torres.getDeterministicLegalMove()
+          makeMove(torres, move, torres.activePlayer)
+        }
+      }
       this.fitness = torres.getRewardPerPlayer(true)[myInfo.id]
     }
     this.age++
