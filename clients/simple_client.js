@@ -5,13 +5,14 @@ const Torres = require('../public/javascripts/torres')
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
 
-const myInfo = { id: null, ai: 'random' }
+const myInfo = {
+  type: 'random_ai',
+  playerInfo: null,
+  torres: null
+}
 
 async function myMove () {
-  const torres = await new Promise(resolve => {
-    send('status_request', ['game_state'])
-    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
-  })
+  const torres = myInfo.torres
   const legalMoves = torres.getLegalMoves(torres._activePlayer)
   const randomAction = legalMoves[Math.floor(Math.random() * legalMoves.length)]
   await new Promise(resolve => setTimeout(resolve, 100))
@@ -19,6 +20,22 @@ async function myMove () {
     send('move', randomAction)
   } else {
     send('move', { action: 'turn_end' })
+  }
+}
+
+async function update () {
+  const playerInfo = await new Promise(resolve => {
+    send('status_request', ['player_info'])
+    messageParser.once('player_info_response', (data) => resolve(data))
+  })
+  const torres = await new Promise(resolve => {
+    send('status_request', ['game_state'])
+    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
+  })
+  myInfo.playerInfo = playerInfo
+  myInfo.torres = torres
+  if (torres.activePlayer === myInfo.playerInfo.id) {
+    myMove()
   }
 }
 
@@ -41,21 +58,16 @@ messageParser.on('error', (data) => {
 
 messageParser.on('game_start', (data) => {
   console.log('game started')
-  myInfo.id = data.your_player_id
-  send('info', myInfo.ai)
-  if (data.your_player_id === 0) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('game_end', (data) => {
   console.log('game ended')
+  update()
 })
 
 messageParser.on('move_update', (data) => {
-  if ((data.next_player === myInfo.id)) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('move_response', (data) => {
@@ -63,6 +75,10 @@ messageParser.on('move_response', (data) => {
 
 ws.on('open', () => {
   console.log('connected')
+  send('info', {
+    type: myInfo.type
+  })
+  update()
 })
 
 ws.on('message', (message) => {
