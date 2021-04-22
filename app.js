@@ -18,9 +18,9 @@ app.use(logger('dev'))
   game init
 */
 
-const numPlayers = 2
+const numPlayers = 4
 const Torres = require('./public/javascripts/torres')
-const torres = new Torres(numPlayers, 'random')
+const torres = new Torres(numPlayers, 'choice')
 
 // for testing
 const { performance } = require('perf_hooks')
@@ -158,6 +158,9 @@ wss.on('connection', (ws) => {
       case 'knight_move':
         valid = torres.moveKnight(playerId, move.x, move.y, move.destX, move.destY)
         break
+      case 'king_place':
+        valid = torres.placeKing(playerId, move.x, move.y)
+        break
       case 'turn_end':
         valid = torres.endTurn(playerId)
         console.log('\n' + (performance.now() - start) + '\n')
@@ -195,7 +198,7 @@ wss.on('connection', (ws) => {
         case 'legal_moves':
           ws.send(JSON.stringify({
             type: 'legal_moves_response',
-            data: torres.getLegalMoves(torres.activePlayer)
+            data: torres.getLegalMoves(getPlayerId(ws))
           }))
           break
         case 'player_info':
