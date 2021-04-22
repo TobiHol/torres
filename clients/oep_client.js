@@ -205,6 +205,9 @@ function makeMove (torres, move, playerId) {
     case 'knight_move':
       legal = torres.moveKnight(playerId, move.x, move.y, move.destX, move.destY)
       break
+    case 'king_place':
+      legal = torres.placeKing(playerId, move.x, move.y)
+      break
     case 'turn_end':
       legal = torres.endTurn(playerId)
       break

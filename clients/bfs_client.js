@@ -177,6 +177,9 @@ function makeMove (torres, move, playerId) {
     case 'knight_move':
       torres.moveKnightExecute(playerId, move.x, move.y, move.destX, move.destY)
       break
+    case 'king_place':
+      torres.placeKingExecute(move.x, move.y)
+      break
     case 'turn_end':
       torres.endTurn(playerId)
       break
@@ -195,6 +198,9 @@ function undoMoveNoTurnEnd (torres, move, playerId) {
       break
     case 'knight_move':
       torres.moveKnightUndo(playerId, move.x, move.y, move.destX, move.destY)
+      break
+    case 'king_place':
+      torres.placeKingUndo(playerId)
       break
     default:
       break
