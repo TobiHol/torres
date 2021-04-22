@@ -22,8 +22,8 @@ table, th, td {
   border-style: solid;
 }
 
-.player-table th:nth-child(5), 
-.player-table td:nth-child(5),
+.player-table th:nth-child(6), 
+.player-table td:nth-child(6),
 .player-table th:last-child, 
 .player-table td:last-child {
   border-left-width: 2px;
