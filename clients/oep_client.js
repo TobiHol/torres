@@ -41,19 +41,19 @@ function oep (torres, popSize = 100, timeLimit = 20000) {
   bestTurn.push(...population[0].moves)
 }
 
-function init (pop, popSize, torres) { // TODO: 20% greedy, rest completly random
+function init (pop, popSize, torres) {
   for (let i = 0; i < popSize; i++) {
     const clonedT = cloneTorres(torres)
-    const g = new Genome(randomTurn(clonedT))
+    const g = new Genome(randomTurn(clonedT), i < (popSize / 5)) // 20% greedy, rest completly random
     pop.push(g)
   }
 }
 
-function randomTurn (torres) {
+function randomTurn (torres, biased) {
   const turn = []
   let move = null
   while (!move || move.action !== 'turn_end') {
-    move = torres.getRandomLegalMove(1)
+    move = biased ? torres.getRandomLegalMoveBiased(1) : torres.getRandomLegalMove()
     makeMove(torres, move, torres.activePlayer)
     turn.push(move)
   }
@@ -107,7 +107,7 @@ function uniformCrossover (parent1, parent2, torres) {
     }
     if (!success) {
       if (!move || !makeMove(currTorres, move, currTorres.activePlayer)) { // both parent's moves are illegal
-        move = currTorres.getRandomLegalMove(1) // TODO: first try i++
+        move = currTorres.getRandomLegalMoveBiased(1) // TODO: first try i++
         makeMove(currTorres, move, currTorres.activePlayer)
       }
     }
@@ -123,11 +123,11 @@ function mutate (moves, torres) {
   for (let i = 0; i < idx; i++) {
     makeMove(currTorres, moves[i], currTorres.activePlayer)
   }
-  let newMove = currTorres.getRandomLegalMove(1)
+  let newMove = currTorres.getRandomLegalMoveBiased(1)
   moves[idx] = newMove
   for (let i = idx; i < moves.length; i++) {
     if (!makeMove(currTorres, moves[i], currTorres.activePlayer)) {
-      newMove = currTorres.getRandomLegalMove(1)
+      newMove = currTorres.getRandomLegalMoveBiased(1)
       makeMove(currTorres, newMove, currTorres.activePlayer)
       moves[i] = newMove
     }

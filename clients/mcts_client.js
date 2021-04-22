@@ -80,7 +80,7 @@ function bbMcts (torres, timeLimit = 10000) {
     }
     currentNode = treePolicy(rootNode, 0)
     currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres, true)
+    rewardPerPlayer = defaultPolicy(currentTorres, true, 0.5) // epsilon-greedy with epsilon = 0.5
     backup(currentNode, rewardPerPlayer)
   }
   fillBestTurn(rootNode)
@@ -103,13 +103,13 @@ function treePolicy (rootNode, c, d = 1) {
   return node
 }
 
-function defaultPolicy (torres, deterministic = false) {
+function defaultPolicy (torres, deterministic, epsilon) {
   let move
   while (torres.gameRunning) {
-    if (deterministic) {
-      move = torres.getDeterministicLegalMove()
+    if (deterministic || Math.random() > epsilon) {
+      move = torres.getDeterministicLegalMove() // follow simple greedy heuristic (based on getLegalMovesOrdered)
     } else {
-      move = torres.getRandomLegalMove()
+      move = torres.getRandomLegalMoveBiased()
     }
     makeMove(torres, move, torres.activePlayer)
   }
