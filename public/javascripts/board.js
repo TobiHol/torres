@@ -8,6 +8,8 @@ class Board {
     this._startingBlocks = startingBlocks
     this._colors = colors
 
+    this._kingsCastle = null
+
     // generate board
     this._squares = new Array(this._height * this._width).fill().map((x, i) => (
       {
@@ -15,7 +17,7 @@ class Board {
         y: Math.floor(i / this._width),
         castle: -1, // id of castle or -1
         height: 0,
-        knight: -1 // player id of knight or -1
+        knight: -1 // player id of knight, 'king', or -1
       }))
   }
 
@@ -60,6 +62,9 @@ class Board {
         square.knight = p.id
       }
     }
+    // place king
+    const square = this._squares.find(s => s.height === 1 && s.knight === -1)
+    this.placeKing(square)
   }
 
   getSquare (x, y) {
@@ -102,7 +107,7 @@ class Board {
   }
 
   getHighestKnightsPerCastle () {
-    const knightsOnCastles = this._squares.filter(square => square.castle !== -1 && square.knight !== -1)
+    const knightsOnCastles = this._squares.filter(square => square.castle !== -1 && square.knight !== -1 && square.knight !== 'king')
     const highestKnights = new Array(this._numCastles).fill({ knight: -1, height: -1 })
     for (const square of knightsOnCastles) {
       const hk = highestKnights[square.castle]
@@ -191,6 +196,17 @@ class Board {
     this.getSquare(x, y).knight = -1
   }
 
+  placeKing (square) {
+    square.knight = 'king'
+    this._kingsCastle = square.castle
+  }
+
+  // TODO
+  placeKingUndo (x, y) {
+    this.getSquare(x, y).knight = -1
+    this._kingsCastle = null
+  }
+
   canMoveKnight (x, y, destX, destY, playerId) {
     const startSquare = this.getSquare(x, y)
     const destSquare = this.getSquare(destX, destY)
@@ -226,8 +242,8 @@ class Board {
     this.getSquare(destX, destY).knight = -1
   }
 
-  evaluateBoard (playerId) {
-    const knightPositions = this._squares.filter(square => square.knight === playerId && square.castle >= 0)
+  evaluateBoard (playerId, phase) {
+    const knightPositions = this._squares.filter(square => square.knight === playerId && square.height > 0)
     // find highest knight per castle
     const heightPerCastle = knightPositions.reduce((prev, square) => {
       if (!(square.castle in prev) || prev[square.castle] < square.height) {
@@ -235,8 +251,12 @@ class Board {
       }
       return prev
     }, {})
-    const score = Object.keys(heightPerCastle).reduce((prev, castleId) =>
+    let score = Object.keys(heightPerCastle).reduce((prev, castleId) =>
       prev + heightPerCastle[castleId] * this._castleSizes[castleId], 0)
+    // score for protecting king
+    if (knightPositions.some(square => square.castle === this._kingsCastle && square.height === phase)) {
+      score += phase * 5
+    }
     return score
   }
 
@@ -254,15 +274,27 @@ class Board {
   html () {
     let str = '<table width="400" height="400" border="1" >'
     for (let i = 0; i < this._squares.length; i++) {
-      if (i % this._width === 0) str += '<tr>'
+      if (i % this._width === 0) {
+        str += '<tr>'
+      }
       const square = this._squares[i]
+      let numCol
+      if (square.knight === -1) {
+        numCol = 'black'
+      } else if (square.knight === 'king') {
+        numCol = 'white'
+      } else {
+        numCol = this._colors[square.knight]
+      }
       str += '<td align="center" style="background-color: ' + (square.height === 0
         ? 'white'
         : 'grey') +
-        '; color: ' +
-         (square.knight === -1 ? 'black' : this._colors[square.knight]) +
-        '">' + square.height + '</td>'
-      if (i % this._width === this._width - 1) str += '</tr>'
+        '; color: ' + numCol + '">' +
+        square.height +
+        '</td>'
+      if (i % this._width === this._width - 1) {
+        str += '</tr>'
+      }
     }
     str += '</table>'
     return str

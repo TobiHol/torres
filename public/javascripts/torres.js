@@ -305,7 +305,7 @@ class Torres {
 
   endOfPhasEvaluation () {
     for (const p of this._playerList) {
-      const score = this._board.evaluateBoard(p.id)
+      const score = this._board.evaluateBoard(p.id, this._phase)
       p.addPoints(score)
     }
   }
@@ -313,7 +313,7 @@ class Torres {
   evaluateState () {
     const scorePerPlayer = new Array(this._numPlayers)
     for (const p of this._playerList) {
-      const score = this._board.evaluateBoard(p.id)
+      const score = this._board.evaluateBoard(p.id, this._phase)
       scorePerPlayer[p.id] = score
     }
     return this._playerList.map(p => p.points + scorePerPlayer[p.id])
