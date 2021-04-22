@@ -16,35 +16,40 @@ async function myMove () {
       send('status_request', ['game_state'])
       messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
     })
-    oep(torres, 100, 10000)
+    oep(torres)
   }
   if (bestTurn.length > 0) {
     send('move', bestTurn.shift())
   }
 }
 
-function oep (torres, popSize = 100, timeLimit = 20000) {
+function oep (torres, popSize = 100, timeLimit = 10000) {
   const t0 = performance.now()
+  let runs = 0
   let population = []
   init(population, popSize, torres)
   while (true) {
-    for (const g of population) {
-      g.calcFitness(torres)
+    runs++
+    for (const g of population) { // TODO: delete?
+      g.calcFitness() // only adds to age
     }
     population.sort((g1, g2) => g2.fitness - g1.fitness)
     if (performance.now() - t0 > timeLimit) {
       break
     }
-    population = population.slice(0, Math.ceil(population.length / 2))
+    // TODO: kill genomes with same moves -> replace with new random genome?
+    population = population.slice(0, Math.ceil(population.length / 2)) // kill the worse half of the population (kill rate )
     population = procreate(population, torres)
   }
   bestTurn.push(...population[0].moves)
+  console.log('runs: ' + runs)
 }
 
 function init (pop, popSize, torres) {
   for (let i = 0; i < popSize; i++) {
     const clonedT = cloneTorres(torres)
-    const g = new Genome(randomTurn(clonedT), i < (popSize / 5)) // 20% greedy, rest completly random
+    const g = new Genome(randomTurn(clonedT, i < (popSize / 5))) // 20% greedy, rest completly random
+    g.calcFitness(clonedT)
     pop.push(g)
   }
 }
@@ -63,22 +68,25 @@ function randomTurn (torres, biased) {
 function procreate (pop, torres, pm = 0.1) {
   pop.sort(() => 0.5 - Math.random()) // shuffle pop
   const newPop = []
-  while (pop.length > 1) { // TODO: always even number in pop?
+  while (pop.length > 1) {
     const parent1 = pop.pop()
     const parent2 = pop.pop()
 
     for (let numC = 0; numC < 2; numC++) { // two children
       // uniform crossover
-      let childMoves = uniformCrossover(parent1, parent2, torres)
+      let child = uniformCrossover(parent1, parent2, torres)
 
       // mutation with probability pm (default: 0.1)
       if (Math.random() < pm) {
-        childMoves = mutate(childMoves, torres)
+        child = mutate(child.moves, torres)
       }
-      newPop.push(new Genome(childMoves)) // TODO: init with currentTorres?
+      const g = new Genome(child.moves)
+      g.calcFitness(child.torres)
+      newPop.push(g)
     }
     newPop.push(parent1, parent2)
   }
+  newPop.sort(() => 0.5 - Math.random()) // TODO: evaluate: shuffle yes or no?
   return newPop
 }
 
@@ -114,7 +122,7 @@ function uniformCrossover (parent1, parent2, torres) {
     childMoves.push(move)
     i++
   }
-  return childMoves
+  return { moves: childMoves, torres: currTorres }
 }
 
 function mutate (moves, torres) {
@@ -138,26 +146,23 @@ function mutate (moves, torres) {
   }
   if (idx === moves.length - 1 && moves[idx].action !== 'turn_end') { // last element mutated
     moves.push({ action: 'turn_end' })
+    makeMove(currTorres, { action: 'turn_end' }, currTorres.activePlayer)
   }
-  return moves
+  return { moves, torres: currTorres }
 }
 
 class Genome {
   constructor (moves) {
     this.moves = moves
-    this.visits = 0
+    this.age = -1
     this.fitness = null
   }
 
   calcFitness (torres) {
-    if (this.visits === 0) {
-      const clonedT = cloneTorres(torres)
-      for (const move of this.moves) {
-        makeMove(clonedT, move, clonedT.activePlayer)
-      }
-      this.fitness = clonedT.getRewardPerPlayer(true)[myInfo.id]
+    if (this.age === -1) {
+      this.fitness = torres.getRewardPerPlayer(true)[myInfo.id]
     }
-    this.visits++
+    this.age++
   }
 }
 
