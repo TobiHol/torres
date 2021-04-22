@@ -62,9 +62,6 @@ class Board {
         square.knight = p.id
       }
     }
-    // place king
-    const square = this._squares.find(s => s.height === 1 && s.knight === -1)
-    this.placeKing(square)
   }
 
   getSquare (x, y) {
@@ -196,17 +193,6 @@ class Board {
     this.getSquare(x, y).knight = -1
   }
 
-  placeKing (square) {
-    square.knight = 'king'
-    this._kingsCastle = square.castle
-  }
-
-  // TODO
-  placeKingUndo (x, y) {
-    this.getSquare(x, y).knight = -1
-    this._kingsCastle = null
-  }
-
   canMoveKnight (x, y, destX, destY, playerId) {
     const startSquare = this.getSquare(x, y)
     const destSquare = this.getSquare(destX, destY)
@@ -240,6 +226,29 @@ class Board {
   moveKnightUndo (x, y, destX, destY, playerId) {
     this.getSquare(x, y).knight = playerId
     this.getSquare(destX, destY).knight = -1
+  }
+
+  canPlaceKing (x, y) {
+    const square = this.getSquare(x, y)
+    if (!square || square.knight !== -1 || square.castle === -1) return false
+    return { square }
+  }
+
+  placeKing (square) {
+    square.knight = 'king'
+    this._kingsCastle = square.castle
+  }
+
+  removeKing () {
+    const kingSquare = this.getKingSquare()
+    if (kingSquare) {
+      kingSquare.knight = -1
+    }
+    this._kingsCastle = null
+  }
+
+  getKingSquare () {
+    return this._squares.find(square => square.knight === 'king')
   }
 
   evaluateBoard (playerId, phase) {
