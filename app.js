@@ -264,7 +264,6 @@ wss.on('connection', (ws) => {
           break
       }
     }
-<<<<<<< HEAD
   }
   function joinGame () {
     const id = getPlayerId(null)
@@ -273,43 +272,6 @@ wss.on('connection', (ws) => {
       type: 'player_connect',
       data: {
         id: id
-=======
-    function onInfo () {
-      const data = json.data
-      PLAYER_TYPES[getPlayerId(ws)] = data.type
-      torres.setPlayerAI(getPlayerId(ws), data.type)
-    }
-    function onCommand () {
-      const commands = json.data
-      for (const command of commands) {
-        switch (command) {
-          case 'game_reset':
-            if (GAME_ON) {
-              GAME_ON = false
-              broadcast(JSON.stringify({
-                type: 'game_end',
-                data: {
-                  winner: null
-                }
-              }))
-            }
-            torres.resetGame()
-            break
-          case 'game_init':
-            if (GAME_ON) break
-            start = performance.now()
-            torres.initGame()
-            GAME_ON = true
-            wss.clients.forEach(function each (client) {
-              client.send(JSON.stringify({
-                type: 'game_start'
-              }))
-            })
-            break
-          default:
-            break
-        }
->>>>>>> 7dd2fc7e9861291b05d9bd05dceb4943d00b7e08
       }
     }))
   }
