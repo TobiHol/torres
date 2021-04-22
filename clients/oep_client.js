@@ -38,7 +38,19 @@ function oep (torres, popSize = 100, timeLimit = 10000) {
       break
     }
     // TODO: kill genomes with same moves -> replace with new random genome?
-    population = population.slice(0, Math.ceil(population.length / 2)) // kill the worse half of the population (kill rate )
+    const l = population.length
+    let i = 0
+    population = population.filter(g => {
+      if (g.moves.length === 1) { // only 'turn_end'
+        if (i === 0) {
+          i++
+          return true
+        }
+        return false
+      }
+      return true
+    })
+    population = population.slice(0, Math.ceil(l / 2)) // kill the worse half of the population (kill rate )
     population = procreate(population, torres)
   }
   bestTurn.push(...population[0].moves)
@@ -71,6 +83,7 @@ function procreate (pop, torres, pm = 0.1) {
   while (pop.length > 1) {
     const parent1 = pop.pop()
     const parent2 = pop.pop()
+    newPop.push(parent1, parent2)
 
     for (let numC = 0; numC < 2; numC++) { // two children
       // uniform crossover
@@ -84,9 +97,7 @@ function procreate (pop, torres, pm = 0.1) {
       g.calcFitness(child.torres)
       newPop.push(g)
     }
-    newPop.push(parent1, parent2)
   }
-  newPop.sort(() => 0.5 - Math.random()) // TODO: evaluate: shuffle yes or no?
   return newPop
 }
 
