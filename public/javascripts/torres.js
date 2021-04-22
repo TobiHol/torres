@@ -100,19 +100,28 @@ class Torres {
   initGame () {
     if (this._phase !== -1) return false
 
-    if (this._initMode === 'random') {
-      this._board.initCastles()
-      this._board.initKnights(this._playerList)
-      this._round = 1
-      this._phase = 1
-    } else if (this._initMode === 'choice') {
-      this._board.initCastles() // TODO: let players choose castle placements ?
-      this._placedInitKnights = new Array(this._numPlayers).fill(false) // TODO: find more elegant solution
-      // set attributes to initiation round
-      this._round = 0
-      this._phase = 0
-    } else {
-      return false
+    switch (this._initMode) {
+      case 'random':
+        this._board.initCastles()
+        this._board.initKnights(this._playerList)
+        this._round = 1
+        this._phase = 1
+        break
+      case 'choice':
+        this._board.initCastles() // TODO: let players choose castle placements ?
+        this._placedInitKnights = new Array(this._numPlayers).fill(false) // TODO: find more elegant solution
+        // set attributes to initiation round
+        this._round = 0
+        this._phase = 0
+        break
+      case 'balanced': // TODO: extend for variable board size
+        this._board.initCastles()
+        this._board.initKnights(this._playerList, true)
+        this._round = 1
+        this._phase = 1
+        break
+      default:
+        return false
     }
     this._activePlayer = 0
     this._startingPlayer = 0
