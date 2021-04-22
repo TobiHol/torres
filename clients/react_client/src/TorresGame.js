@@ -104,6 +104,9 @@ class Game extends React.Component {
 
     messageParser.on('player_connect', (data) => {
       update()
+      this.send('info', {
+        type: 'player'
+      })
     })
 
     messageParser.on('player_disconnect', (data) => {
@@ -288,18 +291,33 @@ class Game extends React.Component {
   }
 
   renderGameInfo(){
-    let torres = this.state.torres
-    return(
+    const torres = this.state.torres
+    const gameInfo = []
+    if (this.state.playerInfo.id === -1) {
+      gameInfo.push(
+        <div>
+          You are observer <span style={{color:'black'}}>▲</span>
+        </div>
+      )
+    }else{
+      gameInfo.push(
+        <div>
+          You are the {torres._playerColors[this.state.playerInfo.id]} player <span style={{color:torres._playerColors[this.state.playerInfo.id]}}>▲</span>
+        </div>
+      )
+    }
+    gameInfo.push(<br/>)
+    gameInfo.push(
       <div>
-        You are the {torres._playerColors[this.state.playerInfo.id]} Player <span style={{color:torres._playerColors[this.state.playerInfo.id]}}>▲</span> (ID: {this.state.playerInfo.id})
-        <br/>
-        <br/>
         Phase: {torres._phase}/{torres._numPhases}
-        <br/>
-        Round: {torres._round}/{torres._phase === 0 ? 0 : torres._numRoundsPerPhase[torres._phase-1]}
-        <br/>
       </div>
     )
+    gameInfo.push(
+      <div>
+        Round: {torres._round}/{torres._phase === 0 ? 0 : torres._numRoundsPerPhase[torres._phase-1]}
+      </div>
+    )
+    return gameInfo
   }
 
   renderGameOptions(){
@@ -327,6 +345,26 @@ class Game extends React.Component {
           value='Start Game'
           onClick={() => {
             this.send('command', ['game_reset', 'game_init'])
+          }}
+          />
+      )
+    }
+    options.push(<div/>)
+    if (this.state.playerInfo.id === -1) {
+      options.push(
+        <Button
+          value='Join Game'
+          onClick={() => {
+            this.send('command', ['game_join'])
+          }}
+          />
+      )
+    } else {
+      options.push(
+        <Button
+          value='Leave Game'
+          onClick={() => {
+            this.send('command', ['game_leave'])
           }}
           />
       )
