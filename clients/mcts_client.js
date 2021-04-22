@@ -274,12 +274,20 @@ messageParser.on('move_update', (data) => {
 messageParser.on('move_response', (data) => {
 })
 
-ws.on('open', () => {
-  console.log('connected')
+messageParser.on('player_connect', (data) => {
+  update()
   send('info', {
     type: myInfo.type
   })
+})
+
+messageParser.on('player_disconnect', (data) => {
   update()
+})
+
+ws.on('open', () => {
+  console.log('connected')
+  send('command', ['game_join'])
 })
 
 ws.on('message', (message) => {
