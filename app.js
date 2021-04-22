@@ -20,7 +20,7 @@ app.use(logger('dev'))
 
 const numPlayers = 4
 const Torres = require('./public/javascripts/torres')
-const torres = new Torres(numPlayers, 'choice')
+const torres = new Torres(numPlayers, 'balanced')
 
 // for testing
 const { performance } = require('perf_hooks')
@@ -223,6 +223,7 @@ wss.on('connection', (ws) => {
     function onInfo () {
       const data = json.data
       PLAYER_TYPES[getPlayerId(ws)] = data.type
+      torres.setPlayerAI(getPlayerId(ws), data.type)
     }
     function onCommand () {
       const commands = json.data

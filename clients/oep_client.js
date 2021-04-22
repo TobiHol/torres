@@ -6,22 +6,21 @@ const Torres = require('../public/javascripts/torres')
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
 
-const myInfo = { id: null, ai: 'oep' }
+const myInfo = {
+  type: 'oep_ai',
+  playerInfo: null,
+  torres: null
+}
 
 let bestTurn = []
 
 async function myMove () {
   if (bestTurn.length === 0) {
-    const torres = await new Promise(resolve => {
-      send('status_request', ['game_state'])
-      messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
-    })
-    if (torres.gameRunning) {
-      if (myInfo.id < 2) {
-        oep(torres, false)
-      } else {
-        oep(torres, true)
-      }
+    const torres = myInfo.torres
+    if (myInfo.playerInfo.id < 2) {
+      oep(torres, false)
+    } else {
+      oep(torres, true)
     }
   }
   if (bestTurn.length > 0) {
@@ -179,12 +178,12 @@ class Genome {
     if (this.age === -1) {
       if (rollout) {
         let move
-        while (torres.activePlayer !== myInfo.id && torres.gameRunning) {
+        while (torres.activePlayer !== myInfo.playerInfo.id && torres.gameRunning) {
           move = torres.getDeterministicLegalMove()
           makeMove(torres, move, torres.activePlayer)
         }
       }
-      this.fitness = torres.getRewardPerPlayer(true)[myInfo.id]
+      this.fitness = torres.getRewardPerPlayer(true)[myInfo.playerInfo.id]
     }
     this.age++
   }
@@ -215,6 +214,22 @@ function makeMove (torres, move, playerId) {
   return legal
 }
 
+async function update () {
+  const playerInfo = await new Promise(resolve => {
+    send('status_request', ['player_info'])
+    messageParser.once('player_info_response', (data) => resolve(data))
+  })
+  const torres = await new Promise(resolve => {
+    send('status_request', ['game_state'])
+    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
+  })
+  myInfo.playerInfo = playerInfo
+  myInfo.torres = torres
+  if (torres.activePlayer === myInfo.playerInfo.id) {
+    myMove()
+  }
+}
+
 function send (type, data) {
   const message = {
     type: type,
@@ -234,22 +249,17 @@ messageParser.on('error', (data) => {
 
 messageParser.on('game_start', (data) => {
   console.log('game started')
-  myInfo.id = data.your_player_id
-  send('info', myInfo.ai)
   bestTurn = []
-  if (data.your_player_id === 0) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('game_end', (data) => {
   console.log('game ended')
+  update()
 })
 
 messageParser.on('move_update', (data) => {
-  if ((data.next_player === myInfo.id)) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('move_response', (data) => {
@@ -257,6 +267,10 @@ messageParser.on('move_response', (data) => {
 
 ws.on('open', () => {
   console.log('connected')
+  send('info', {
+    type: myInfo.type
+  })
+  update()
 })
 
 ws.on('message', (message) => {

@@ -259,7 +259,7 @@ class Game extends React.Component {
       </tr>
     )
     let data = torres._playerList.map(player => {
-      const {_id, _ai, _color, _numKnights, _ap, _numBlocks, _points} = player
+      const {_id, _color, _numKnights, _ap, _numBlocks, _points} = player
       return (
         <tr key={_id}>
           <td>{torres._activePlayer === _id ? '>' : ''}</td>
