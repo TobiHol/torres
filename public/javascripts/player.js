@@ -2,7 +2,6 @@ class Player {
   constructor ({ id, color, numKnights, apPerRound, blocksPerRound }) {
     this._id = id
     this._color = color
-    this._ai = null
 
     this._apPerRound = apPerRound
     this._blocksPerRound = blocksPerRound
@@ -33,10 +32,6 @@ class Player {
 
   get numBlocks () {
     return this._numBlocks
-  }
-
-  setAI (ai) {
-    this._ai = ai
   }
 
   resetAttributesTo ({ points, ap, numBlocks }) {
@@ -121,7 +116,6 @@ class Player {
     str += this.tableEntry(activePlayer === this._id ? '>' : '')
     str += this.tableEntry('<span style="color:' + this._color + '">▲</span> ')
     str += this.tableEntry(this._id)
-    str += this.tableEntry(this._ai ? this._ai : '')
     str += this.tableEntry(this._ap, turnBasedOn)
     str += this.tableEntry(this._numBlocks, turnBasedOn)
     str += this.tableEntry(this._numKnights, turnBasedOn)

@@ -81,10 +81,6 @@ class Torres {
     return this._gameRunning
   }
 
-  setPlayerAI (playerId, ai) {
-    this._playerList[playerId].setAI(ai)
-  }
-
   resetGame () {
     this._playerList = [...Array(this._numPlayers).keys()].map(id => new Player({ id, color: this._playerColors[id], ...this._playerParams }))
     this._board = new Board(this._boardParams)
@@ -593,7 +589,7 @@ class Torres {
     str += '<br/><br/>'
     str += '<div>'
     str += '<table border="1" width="400"><tbody>'
-    str += '<tr><th>Turn</th><th>Player</th><th>ID</th><th>AI</th><th>AP</th><th>Blocks</th><th>Knights</th><th>Points</th></tr>'
+    str += '<tr><th>Turn</th><th>Player</th><th>ID</th><th>AP</th><th>Blocks</th><th>Knights</th><th>Points</th></tr>'
     for (const p of this._playerList) {
       str += p.html(this._gameRunning, this._phase, this._activePlayer)
     }
