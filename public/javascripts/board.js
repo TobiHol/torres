@@ -42,15 +42,23 @@ class Board {
     this._castleSizes.fill(1)
   }
 
-  initKnights (players) {
-    // random initialization
-    for (const p of players) {
-      let square = null
-      while (!square || square.knight !== -1) { // search for free starting castle
-        const rand = Math.round(Math.random() * this._numCastles)
-        square = this._squares[this._startingBlocks[rand]]
+  initKnights (players, balanced = false) {
+    if (balanced) {
+      // fixed positions
+      for (let i = 0; i < players.length; i++) {
+        const square = this._squares[this._startingBlocks[i < 2 ? i + 1 : i + 3]]
+        square.knight = players[i].id
       }
-      square.knight = p.id
+    } else {
+      // random initialization
+      for (const p of players) {
+        let square = null
+        while (!square || square.knight !== -1) { // search for free starting castle
+          const rand = Math.round(Math.random() * this._numCastles)
+          square = this._squares[this._startingBlocks[rand]]
+        }
+        square.knight = p.id
+      }
     }
   }
 

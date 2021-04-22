@@ -6,78 +6,102 @@ const Torres = require('../public/javascripts/torres')
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
 
-const myInfo = { id: null, ai: 'oep' }
+const myInfo = {
+  type: 'oep_ai',
+  playerInfo: null,
+  torres: null
+}
 
 let bestTurn = []
 
 async function myMove () {
   if (bestTurn.length === 0) {
-    const torres = await new Promise(resolve => {
-      send('status_request', ['game_state'])
-      messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
-    })
-    oep(torres, 100, 10000)
+    const torres = myInfo.torres
+    if (myInfo.playerInfo.id < 2) {
+      oep(torres, false)
+    } else {
+      oep(torres, true)
+    }
   }
   if (bestTurn.length > 0) {
     send('move', bestTurn.shift())
   }
 }
 
-function oep (torres, popSize = 100, timeLimit = 20000) {
+function oep (torres, rollout = false, popSize = 100, timeLimit = 10000) {
   const t0 = performance.now()
+  let runs = 0
   let population = []
-  init(population, popSize, torres)
+  init(population, popSize, torres, rollout)
   while (true) {
-    for (const g of population) {
-      g.calcFitness(torres)
+    runs++
+    for (const g of population) { // TODO: delete?
+      g.calcFitness() // only adds to age
     }
     population.sort((g1, g2) => g2.fitness - g1.fitness)
     if (performance.now() - t0 > timeLimit) {
       break
     }
-    population = population.slice(0, Math.ceil(population.length / 2))
-    population = procreate(population, torres)
+    // TODO: kill genomes with same moves -> replace with new random genome?
+    const l = population.length
+    let i = 0
+    population = population.filter(g => {
+      if (g.moves.length === 1) { // only 'turn_end'
+        if (i === 0) {
+          i++
+          return true
+        }
+        return false
+      }
+      return true
+    })
+    population = population.slice(0, Math.ceil(l / 2)) // kill the worse half of the population (kill rate )
+    population = procreate(population, torres, rollout)
   }
   bestTurn.push(...population[0].moves)
+  console.log('runs: ' + runs)
 }
 
-function init (pop, popSize, torres) { // TODO: 20% greedy, rest completly random
+function init (pop, popSize, torres, rollout) {
   for (let i = 0; i < popSize; i++) {
     const clonedT = cloneTorres(torres)
-    const g = new Genome(randomTurn(clonedT))
+    const g = new Genome(randomTurn(clonedT, i < (popSize / 2))) // 50% greedy, rest completly random
+    g.calcFitness(clonedT, rollout)
     pop.push(g)
   }
 }
 
-function randomTurn (torres) {
+function randomTurn (torres, biased) {
   const turn = []
   let move = null
   while (!move || move.action !== 'turn_end') {
-    move = torres.getRandomLegalMove(1)
+    move = biased ? torres.getRandomLegalMoveBiased(1) : torres.getRandomLegalMove()
     makeMove(torres, move, torres.activePlayer)
     turn.push(move)
   }
   return turn
 }
 
-function procreate (pop, torres, pm = 0.1) {
+function procreate (pop, torres, rollout, pm = 0.1) {
   pop.sort(() => 0.5 - Math.random()) // shuffle pop
   const newPop = []
-  while (pop.length > 1) { // TODO: always even number in pop?
+  while (pop.length > 1) {
     const parent1 = pop.pop()
     const parent2 = pop.pop()
+    newPop.push(parent1, parent2)
 
     for (let numC = 0; numC < 2; numC++) { // two children
       // uniform crossover
-      let childMoves = uniformCrossover(parent1, parent2, torres)
+      let child = uniformCrossover(parent1, parent2, torres)
 
       // mutation with probability pm (default: 0.1)
       if (Math.random() < pm) {
-        childMoves = mutate(childMoves, torres)
+        child = mutate(child.moves, torres)
       }
-      newPop.push(new Genome(childMoves)) // TODO: init with currentTorres?
+      const g = new Genome(child.moves)
+      g.calcFitness(child.torres, rollout)
+      newPop.push(g)
     }
-    newPop.push(parent1, parent2)
   }
   return newPop
 }
@@ -107,14 +131,14 @@ function uniformCrossover (parent1, parent2, torres) {
     }
     if (!success) {
       if (!move || !makeMove(currTorres, move, currTorres.activePlayer)) { // both parent's moves are illegal
-        move = currTorres.getRandomLegalMove(1) // TODO: first try i++
+        move = currTorres.getRandomLegalMoveBiased(1) // TODO: first try i++
         makeMove(currTorres, move, currTorres.activePlayer)
       }
     }
     childMoves.push(move)
     i++
   }
-  return childMoves
+  return { moves: childMoves, torres: currTorres }
 }
 
 function mutate (moves, torres) {
@@ -123,11 +147,11 @@ function mutate (moves, torres) {
   for (let i = 0; i < idx; i++) {
     makeMove(currTorres, moves[i], currTorres.activePlayer)
   }
-  let newMove = currTorres.getRandomLegalMove(1)
+  let newMove = currTorres.getRandomLegalMoveBiased(1)
   moves[idx] = newMove
   for (let i = idx; i < moves.length; i++) {
     if (!makeMove(currTorres, moves[i], currTorres.activePlayer)) {
-      newMove = currTorres.getRandomLegalMove(1)
+      newMove = currTorres.getRandomLegalMoveBiased(1)
       makeMove(currTorres, newMove, currTorres.activePlayer)
       moves[i] = newMove
     }
@@ -138,26 +162,30 @@ function mutate (moves, torres) {
   }
   if (idx === moves.length - 1 && moves[idx].action !== 'turn_end') { // last element mutated
     moves.push({ action: 'turn_end' })
+    makeMove(currTorres, { action: 'turn_end' }, currTorres.activePlayer)
   }
-  return moves
+  return { moves, torres: currTorres }
 }
 
 class Genome {
   constructor (moves) {
     this.moves = moves
-    this.visits = 0
+    this.age = -1
     this.fitness = null
   }
 
-  calcFitness (torres) {
-    if (this.visits === 0) {
-      const clonedT = cloneTorres(torres)
-      for (const move of this.moves) {
-        makeMove(clonedT, move, clonedT.activePlayer)
+  calcFitness (torres, rollout) {
+    if (this.age === -1) {
+      if (rollout) {
+        let move
+        while (torres.activePlayer !== myInfo.playerInfo.id && torres.gameRunning) {
+          move = torres.getDeterministicLegalMove()
+          makeMove(torres, move, torres.activePlayer)
+        }
       }
-      this.fitness = clonedT.getRewardPerPlayer(true)[myInfo.id]
+      this.fitness = torres.getRewardPerPlayer(true)[myInfo.playerInfo.id]
     }
-    this.visits++
+    this.age++
   }
 }
 
@@ -186,6 +214,22 @@ function makeMove (torres, move, playerId) {
   return legal
 }
 
+async function update () {
+  const playerInfo = await new Promise(resolve => {
+    send('status_request', ['player_info'])
+    messageParser.once('player_info_response', (data) => resolve(data))
+  })
+  const torres = await new Promise(resolve => {
+    send('status_request', ['game_state'])
+    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
+  })
+  myInfo.playerInfo = playerInfo
+  myInfo.torres = torres
+  if (torres.activePlayer === myInfo.playerInfo.id) {
+    myMove()
+  }
+}
+
 function send (type, data) {
   const message = {
     type: type,
@@ -205,22 +249,17 @@ messageParser.on('error', (data) => {
 
 messageParser.on('game_start', (data) => {
   console.log('game started')
-  myInfo.id = data.your_player_id
-  send('info', myInfo.ai)
   bestTurn = []
-  if (data.your_player_id === 0) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('game_end', (data) => {
   console.log('game ended')
+  update()
 })
 
 messageParser.on('move_update', (data) => {
-  if ((data.next_player === myInfo.id)) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('move_response', (data) => {
@@ -228,6 +267,10 @@ messageParser.on('move_response', (data) => {
 
 ws.on('open', () => {
   console.log('connected')
+  send('info', {
+    type: myInfo.type
+  })
+  update()
 })
 
 ws.on('message', (message) => {

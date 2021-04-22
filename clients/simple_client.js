@@ -90,7 +90,6 @@ ws.on('open', () => {
 })
 
 ws.on('message', (message) => {
-  // console.log('received:', message.slice(0, 70))
   try {
     const json = JSON.parse(message)
     messageParser.emit(json.type, json.data)

@@ -6,7 +6,11 @@ const Torres = require('../public/javascripts/torres')
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
 
-const myInfo = { id: null, ai: 'minimax' }
+const myInfo = {
+  type: 'minimax_ai',
+  playerInfo: null,
+  torres: null
+}
 
 let tt = {}
 let ttLength = 0
@@ -14,10 +18,7 @@ let lookup = 0
 let cutoffs = 0
 
 async function myMove () {
-  const torres = await new Promise(resolve => {
-    send('status_request', ['game_state'])
-    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
-  })
+  const torres = myInfo.torres
   const t0 = performance.now()
   tt = {}
   ttLength = 0
@@ -222,6 +223,22 @@ function undoMove (torres, move, playerId, info) {
   }
 }
 
+async function update () {
+  const playerInfo = await new Promise(resolve => {
+    send('status_request', ['player_info'])
+    messageParser.once('player_info_response', (data) => resolve(data))
+  })
+  const torres = await new Promise(resolve => {
+    send('status_request', ['game_state'])
+    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
+  })
+  myInfo.playerInfo = playerInfo
+  myInfo.torres = torres
+  if (torres.activePlayer === myInfo.playerInfo.id) {
+    myMove()
+  }
+}
+
 function send (type, data) {
   const message = {
     type: type,
@@ -241,21 +258,16 @@ messageParser.on('error', (data) => {
 
 messageParser.on('game_start', (data) => {
   console.log('game started')
-  myInfo.id = data.your_player_id
-  send('info', myInfo.ai)
-  if (data.your_player_id === 0) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('game_end', (data) => {
   console.log('game ended')
+  update()
 })
 
 messageParser.on('move_update', (data) => {
-  if ((data.next_player === myInfo.id)) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('move_response', (data) => {
@@ -263,6 +275,10 @@ messageParser.on('move_response', (data) => {
 
 ws.on('open', () => {
   console.log('connected')
+  send('info', {
+    type: myInfo.type
+  })
+  update()
 })
 
 ws.on('message', (message) => {

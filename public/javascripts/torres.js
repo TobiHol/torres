@@ -100,19 +100,28 @@ class Torres {
   initGame () {
     if (this._phase !== -1) return false
 
-    if (this._initMode === 'random') {
-      this._board.initCastles()
-      this._board.initKnights(this._playerList)
-      this._round = 1
-      this._phase = 1
-    } else if (this._initMode === 'choice') {
-      this._board.initCastles() // TODO: let players choose castle placements ?
-      this._placedInitKnights = new Array(this._numPlayers).fill(false) // TODO: find more elegant solution
-      // set attributes to initiation round
-      this._round = 0
-      this._phase = 0
-    } else {
-      return false
+    switch (this._initMode) {
+      case 'random':
+        this._board.initCastles()
+        this._board.initKnights(this._playerList)
+        this._round = 1
+        this._phase = 1
+        break
+      case 'choice':
+        this._board.initCastles() // TODO: let players choose castle placements ?
+        this._placedInitKnights = new Array(this._numPlayers).fill(false) // TODO: find more elegant solution
+        // set attributes to initiation round
+        this._round = 0
+        this._phase = 0
+        break
+      case 'balanced': // TODO: extend for variable board size
+        this._board.initCastles()
+        this._board.initKnights(this._playerList, true)
+        this._round = 1
+        this._phase = 1
+        break
+      default:
+        return false
     }
     this._activePlayer = 0
     this._startingPlayer = 0
@@ -473,7 +482,12 @@ class Torres {
     return legalMovesPrio1.concat(legalMovesPrio2, legalMovesPrio3)
   }
 
-  getRandomLegalMove (biasTurnEnd = 40) {
+  getRandomLegalMove () {
+    const legalMoves = this.getLegalMoves(this.activePlayer)
+    return legalMoves[Math.floor(Math.random() * legalMoves.length)]
+  }
+
+  getRandomLegalMoveBiased (biasTurnEnd = 40) {
     const legalMoves = []
     const bias = []
 
@@ -556,60 +570,7 @@ class Torres {
   }
 
   getDeterministicLegalMove () {
-    /*
-    if (this._phase === 0 && !this._placedInitKnights[this._activePlayer]) {
-      const firstFreePlace = this._board.squares.filter(s => s.height === 1 && s.knight === -1)[0]
-      return { action: 'knight_place', x: firstFreePlace.x, y: firstFreePlace.y }
-    }
-    return { action: 'turn_end' }
-    */
     return this.getLegalMovesOrdered()[0]
-  }
-
-  getLegalMovesLimited (playerId, nullMove = false) {
-    const legalMoves = []
-    if (nullMove && this._gameRunning && this._activePlayer !== playerId) {
-      legalMoves.push({ action: 'null_move' })
-    }
-    if (this._gameRunning && this._activePlayer === playerId) {
-      const player = this._playerList[playerId]
-      if (this._phase > 0 || this._placedInitKnights[playerId]) {
-        legalMoves.push({ action: 'turn_end' })
-      }
-      // place init knight
-      if (this._phase === 0 && !this._placedInitKnights[playerId]) {
-        for (const square of this._board.squares.filter(s => s.height === 1 && s.knight === -1)) {
-          legalMoves.push({ action: 'knight_place', x: square.x, y: square.y })
-        }
-      }
-      if (this._phase > 0 && player.ap > 0) {
-        if (player.canPlaceBlock()) {
-          for (let x = 0; x < this._board.width; x++) {
-            for (let y = 0; y < this._board.height; y++) {
-              if (this._board.canPlaceBlock(x, y)) {
-                legalMoves.push({ action: 'block_place', x, y })
-              }
-            }
-          }
-        }
-        // get knight positions
-        const knightSquares = this._board.getKnightSquares(playerId)
-        for (const square of knightSquares) {
-          for (const n of this._board.getNeighbors(square.x, square.y)) {
-            if (n.knight === -1) {
-              if (player.canPlaceKnight() && n.height <= square.height) {
-                legalMoves.push({ action: 'knight_place', x: n.x, y: n.y })
-              }
-              // don't move through castles, only move at most one up/down
-              if (Math.abs(n.height - square.height) <= 1) {
-                legalMoves.push({ action: 'knight_move', x: square.x, y: square.y, destX: n.x, destY: n.y })
-              }
-            }
-          }
-        }
-      }
-    }
-    return legalMoves
   }
 
   ascii () {

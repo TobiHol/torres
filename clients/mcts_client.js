@@ -6,21 +6,22 @@ const Torres = require('../public/javascripts/torres')
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
 
-const myInfo = { id: null, ai: 'mcts' }
+const myInfo = {
+  type: 'mcts_ai',
+  playerInfo: null,
+  torres: null
+}
 
 let bestTurn = []
 
 async function myMove () {
   if (bestTurn.length === 0) {
-    const torres = await new Promise(resolve => {
-      send('status_request', ['game_state'])
-      messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
-    })
-    if (myInfo.id <= 1) {
+    const torres = myInfo.torres
+    if (myInfo.playerInfo.id <= 1) {
       mcts(torres)
-    } else if (myInfo.id === 2) {
+    } else if (myInfo.playerInfo.id === 2) {
       nonexMcts(torres)
-    } else if (myInfo.id === 3) {
+    } else if (myInfo.playerInfo.id === 3) {
       bbMcts(torres)
     }
   }
@@ -38,7 +39,7 @@ function mcts (torres, c = 10, timeLimit = 10000) {
       break
     }
     currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres)
+    rewardPerPlayer = defaultPolicy(currentTorres, false, 0.5) // epsilon-greedy with epsilon = 0.5
     backup(currentNode, rewardPerPlayer)
   }
   fillBestTurn(rootNode)
@@ -53,7 +54,7 @@ function nonexMcts (torres, timeLimit = 10000) {
   while (performance.now() - t0 < timeLimit) {
     currentNode = treePolicy(rootNode, 0, 0.5)
     currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres, true)
+    rewardPerPlayer = defaultPolicy(currentTorres, true) // deterministic
     backup(currentNode, rewardPerPlayer)
   }
   fillBestTurn(rootNode)
@@ -78,9 +79,9 @@ function bbMcts (torres, timeLimit = 10000) {
       }
       rootNode.move = null
     }
-    currentNode = treePolicy(rootNode, 0)
+    currentNode = treePolicy(rootNode, 10)
     currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres, true)
+    rewardPerPlayer = defaultPolicy(currentTorres, false, 0.5) // epsilon-greedy with epsilon = 0.5
     backup(currentNode, rewardPerPlayer)
   }
   fillBestTurn(rootNode)
@@ -103,13 +104,13 @@ function treePolicy (rootNode, c, d = 1) {
   return node
 }
 
-function defaultPolicy (torres, deterministic = false) {
+function defaultPolicy (torres, deterministic, epsilon) {
   let move
   while (torres.gameRunning) {
-    if (deterministic) {
-      move = torres.getDeterministicLegalMove()
+    if (deterministic || Math.random() > epsilon) {
+      move = torres.getDeterministicLegalMove() // follow simple greedy heuristic (based on getLegalMovesOrdered)
     } else {
-      move = torres.getRandomLegalMove()
+      move = torres.getRandomLegalMoveBiased()
     }
     makeMove(torres, move, torres.activePlayer)
   }
@@ -222,6 +223,22 @@ function makeMove (torres, move, playerId) {
   }
 }
 
+async function update () {
+  const playerInfo = await new Promise(resolve => {
+    send('status_request', ['player_info'])
+    messageParser.once('player_info_response', (data) => resolve(data))
+  })
+  const torres = await new Promise(resolve => {
+    send('status_request', ['game_state'])
+    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
+  })
+  myInfo.playerInfo = playerInfo
+  myInfo.torres = torres
+  if (torres.activePlayer === myInfo.playerInfo.id) {
+    myMove()
+  }
+}
+
 function send (type, data) {
   const message = {
     type: type,
@@ -241,22 +258,17 @@ messageParser.on('error', (data) => {
 
 messageParser.on('game_start', (data) => {
   console.log('game started')
-  myInfo.id = data.your_player_id
-  send('info', myInfo.ai)
   bestTurn = []
-  if (data.your_player_id === 0) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('game_end', (data) => {
   console.log('game ended')
+  update()
 })
 
 messageParser.on('move_update', (data) => {
-  if ((data.next_player === myInfo.id)) {
-    myMove()
-  }
+  update()
 })
 
 messageParser.on('move_response', (data) => {
@@ -264,6 +276,10 @@ messageParser.on('move_response', (data) => {
 
 ws.on('open', () => {
   console.log('connected')
+  send('info', {
+    type: myInfo.type
+  })
+  update()
 })
 
 ws.on('message', (message) => {
