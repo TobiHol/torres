@@ -46,7 +46,7 @@ function oep (torres, rollout = false, popSize = 100, timeLimit = 10000) {
     const l = population.length
     let i = 0
     population = population.filter(g => {
-      if (g.moves.length === 1) { // only 'turn_end'
+      if (g.moves.length === 1 && g.moves[0].action === 'turn_end') { // only 'turn_end'
         if (i === 0) {
           i++
           return true
@@ -74,7 +74,7 @@ function init (pop, popSize, torres, rollout) {
 function randomTurn (torres, biased) {
   const turn = []
   let move = null
-  while (!move || (move.action !== 'turn_end' && move.action !== 'king_place')) {
+  while (!move || move.action !== 'turn_end') {
     move = biased ? torres.getRandomLegalMoveBiased(1) : torres.getRandomLegalMove()
     makeMove(torres, move, torres.activePlayer)
     turn.push(move)
@@ -103,6 +103,7 @@ function procreate (pop, torres, rollout, pm = 0.1) {
       newPop.push(g)
     }
   }
+  newPop.push(...pop)
   return newPop
 }
 
@@ -112,7 +113,7 @@ function uniformCrossover (parent1, parent2, torres) {
   const currTorres = cloneTorres(torres)
   let move = null
   let i = 0
-  while (!move || (move.action !== 'turn_end' && move.action !== 'king_place')) {
+  while (!move || move.action !== 'turn_end') {
     let success = false
     if (Math.random() < 0.5) {
       move = parent1.moves[i]
@@ -160,7 +161,7 @@ function mutate (moves, torres) {
       break
     }
   }
-  if (idx === moves.length - 1 && moves[idx].action !== 'turn_end' && moves[idx].action !== 'king_place') { // last element mutated
+  if (idx === moves.length - 1 && moves[idx].action !== 'turn_end') { // last element mutated
     moves.push({ action: 'turn_end' })
     makeMove(currTorres, { action: 'turn_end' }, currTorres.activePlayer)
   }
