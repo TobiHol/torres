@@ -7,7 +7,7 @@ const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
 
 const myInfo = {
-  type: 'mcts_ai',
+  type: 'mcts',
   playerInfo: null,
   torres: null
 }
@@ -17,25 +17,27 @@ let bestTurn = []
 async function myMove () {
   if (bestTurn.length === 0) {
     const torres = myInfo.torres
-    if (myInfo.playerInfo.id <= 1) {
-      mcts(torres, 10, 1000)
+    if (myInfo.playerInfo.id === 0) {
+      mcts(torres, 1000, 5)
+    } else if (myInfo.playerInfo.id === 1) {
+      mcts(torres, 1000, 10)
     } else if (myInfo.playerInfo.id === 2) {
-      nonexMcts(torres, 10, 1000)
+      nonexMcts(torres, 1000)
     } else if (myInfo.playerInfo.id === 3) {
-      bbMcts(torres, 10, 1000)
+      bbMcts(torres, 1000)
     }
   }
   send('move', bestTurn.shift())
 }
 
-function mcts (torres, c = 10, timeLimit = 10000) {
+function mcts (torres, timeLimit = 10000, c = 10) {
   const t0 = performance.now()
   const firstMoves = torres.getLegalMovesOrdered(torres.activePlayer).reverse()
   const rootNode = new Node(torres, null, null, firstMoves, 0)
   let currentNode, currentTorres, rewardPerPlayer
   while (performance.now() - t0 < timeLimit) { // limited time per move
     currentNode = treePolicy(rootNode, c)
-    if (rootNode.untriedMoves.length === 0 && rootNode.children.length <= 1) { // only one possible move
+    if (rootNode.untriedMoves.length === 0 && rootNode.children.length === 1) { // only one possible move
       break
     }
     currentTorres = cloneTorres(currentNode.torres)
@@ -52,7 +54,10 @@ function nonexMcts (torres, timeLimit = 10000) {
   const rootNode = new Node(torres, null, null, firstMoves, 0)
   let currentNode, currentTorres, rewardPerPlayer
   while (performance.now() - t0 < timeLimit) {
-    currentNode = treePolicy(rootNode, 0, 0.5)
+    currentNode = treePolicy(rootNode, 0, 1)
+    if (rootNode.untriedMoves.length === 0 && rootNode.children.length === 1) { // only one possible move
+      break
+    }
     currentTorres = cloneTorres(currentNode.torres)
     rewardPerPlayer = defaultPolicy(currentTorres, true) // deterministic
     backup(currentNode, rewardPerPlayer)
@@ -61,7 +66,7 @@ function nonexMcts (torres, timeLimit = 10000) {
   console.log('runs: ' + rootNode.visits)
 }
 
-function bbMcts (torres, timeLimit = 10000) {
+function bbMcts (torres, timeLimit = 10000, c = 10) {
   const t0 = performance.now()
   let t1 = t0
   const firstMoves = torres.getLegalMovesOrdered(torres.activePlayer).reverse()
@@ -74,18 +79,16 @@ function bbMcts (torres, timeLimit = 10000) {
       rootNode = rootNode.bestChild()
       rootNode.parent = null
       bestTurn.push(rootNode.move)
-      if (rootNode.move.action === 'turn_end' || rootNode.move.action === 'king_place') {
+      if (rootNode.move.action === 'turn_end') {
         break
       }
       rootNode.move = null
     }
-    currentNode = treePolicy(rootNode, 10)
+    currentNode = treePolicy(rootNode, c)
     currentTorres = cloneTorres(currentNode.torres)
     rewardPerPlayer = defaultPolicy(currentTorres, false, 0.5) // epsilon-greedy with epsilon = 0.5
     backup(currentNode, rewardPerPlayer)
   }
-  fillBestTurn(rootNode)
-  console.log('runs: ' + rootNode.visits)
 }
 
 function cloneTorres (torres) {
@@ -130,13 +133,12 @@ function backup (node, rewardPP) {
 function fillBestTurn (rootNode) {
   // best moves until 'turn_end'
   let node = rootNode
-  while (bestTurn.length === 0 ||
-    (bestTurn[bestTurn.length - 1].action !== 'turn_end' && bestTurn[bestTurn.length - 1].action !== 'king_place')) {
-    if (node.children.length === 0) {
-      bestTurn.push({ action: 'turn_end' })
-    } else {
-      node = node.bestChild()
-      bestTurn.push(node.move)
+  while (bestTurn.length === 0 || bestTurn[bestTurn.length - 1].action !== 'turn_end') {
+    node = node.bestChild()
+    bestTurn.push(node.move)
+    if (node.children.length === 0 || node.visits < 10) {
+      // bestTurn.push({ action: 'turn_end' })
+      break
     }
   }
 }
