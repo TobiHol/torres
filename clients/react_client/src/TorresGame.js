@@ -269,11 +269,13 @@ class Game extends React.Component {
         <th>Points</th>
       </tr>
     )
-    let data = torres._playerList.map(player => {
-      const {_id, _color, _numKnights, _ap, _numBlocks, _points} = player
-      return (
+    let data = []
+    let i = torres._startingPlayer === -1 ? 0 : torres._startingPlayer
+    while (true) {
+      const {_id, _color, _numKnights, _ap, _numBlocks, _points} = torres._playerList[i]
+      data.push(
         <tr key={_id}>
-          <td>{torres._activePlayer === _id ? '>' : ''}</td>
+          <td>{torres._gameRunning && torres._activePlayer === _id ? '>' : ''}</td>
           <td><span style={{color:_color}}>▲</span></td>
           <td>{_id}</td>
           <td>{this.state.playerInfo.player_status[_id]}</td>
@@ -284,7 +286,11 @@ class Game extends React.Component {
           <td>{_points}</td>
         </tr>
       )
-    })
+      i = (i + 1) % torres._numPlayers
+      if (i === torres._startingPlayer || (torres._startingPlayer === -1 && i === 0)) {
+        break
+      }
+    }
     return (
       <div>
         {/* <h3 id='title'>Player Table</h3> */}
