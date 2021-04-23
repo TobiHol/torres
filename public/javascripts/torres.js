@@ -5,7 +5,7 @@ class Torres {
   constructor (numPlayers = 2, initMode = 'random',
     boardHeight = 8, boardWidth = 8, numCastles = 8, startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60],
     numRoundsPerPhase = [4, 4, 4], blocksPerRound = new Array(4 * 3).fill(3), apPerRound = 5, numKnights = 5,
-    playerColors = ['red', 'blue', 'green', 'orange']) {
+    playerColors = ['red', 'blue', 'green', 'orange', 'violet', 'yellow', 'brown']) {
     if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0) || startingBlocks.length !== numCastles) {
       console.error("parameters don't match")
     }
@@ -338,7 +338,7 @@ class Torres {
     // determine new starting player
     this._startingPlayer = this._playerList.reduce((maxId, p, id, players) => (p.points > players[maxId].points ? id : maxId), 0)
     this._board.removeKing()
-    this._playerToPlaceKing = this._startingPlayer === 0 ? this._numPlayers - 1 : this._startingPlayer - 1
+    this._playerToPlaceKing = this.getPointsPerPlayer().reduce((iMin, points, i, ppp) => points < ppp[iMin] ? i : iMin, this._numPlayers - 1)
     this._activePlayer = this._playerToPlaceKing
     this._round = 0
     this._phase++
