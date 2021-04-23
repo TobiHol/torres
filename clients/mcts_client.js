@@ -18,11 +18,11 @@ async function myMove () {
   if (bestTurn.length === 0) {
     const torres = myInfo.torres
     if (myInfo.playerInfo.id <= 1) {
-      mcts(torres)
+      mcts(torres, 10, 1000)
     } else if (myInfo.playerInfo.id === 2) {
-      nonexMcts(torres)
+      nonexMcts(torres, 10, 1000)
     } else if (myInfo.playerInfo.id === 3) {
-      bbMcts(torres)
+      bbMcts(torres, 10, 1000)
     }
   }
   send('move', bestTurn.shift())
@@ -74,7 +74,7 @@ function bbMcts (torres, timeLimit = 10000) {
       rootNode = rootNode.bestChild()
       rootNode.parent = null
       bestTurn.push(rootNode.move)
-      if (rootNode.move.action === 'turn_end') {
+      if (rootNode.move.action === 'turn_end' || rootNode.move.action === 'king_place') {
         break
       }
       rootNode.move = null
@@ -130,7 +130,8 @@ function backup (node, rewardPP) {
 function fillBestTurn (rootNode) {
   // best moves until 'turn_end'
   let node = rootNode
-  while (bestTurn.length === 0 || bestTurn[bestTurn.length - 1].action !== 'turn_end') {
+  while (bestTurn.length === 0 ||
+    (bestTurn[bestTurn.length - 1].action !== 'turn_end' && bestTurn[bestTurn.length - 1].action !== 'king_place')) {
     if (node.children.length === 0) {
       bestTurn.push({ action: 'turn_end' })
     } else {
@@ -237,7 +238,7 @@ async function update () {
   })
   myInfo.playerInfo = playerInfo
   myInfo.torres = torres
-  if (torres.activePlayer === myInfo.playerInfo.id) {
+  if (torres.activePlayer === myInfo.playerInfo.id && torres.gameRunning) {
     myMove()
   }
 }

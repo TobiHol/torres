@@ -26,9 +26,9 @@ async function myMove () {
   cutoffs = 0
   let bestMove
   if (torres.numPlayers === 2) {
-    bestMove = negamax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, torres.activePlayer, 10000, t0)
+    bestMove = negamax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, torres.activePlayer, 1000, t0)
   } else {
-    bestMove = minimax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, 10000, t0)
+    bestMove = minimax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, 1000, t0)
   }
   console.log('time: ' + (performance.now() - t0) + 'ms')
   console.log('cutoffs: ' + cutoffs)
@@ -240,7 +240,7 @@ async function update () {
   })
   myInfo.playerInfo = playerInfo
   myInfo.torres = torres
-  if (torres.activePlayer === myInfo.playerInfo.id) {
+  if (torres.activePlayer === myInfo.playerInfo.id && torres.gameRunning) {
     myMove()
   }
 }

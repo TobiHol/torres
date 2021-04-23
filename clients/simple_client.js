@@ -34,7 +34,7 @@ async function update () {
   })
   myInfo.playerInfo = playerInfo
   myInfo.torres = torres
-  if (torres.activePlayer === myInfo.playerInfo.id) {
+  if (torres.activePlayer === myInfo.playerInfo.id && torres.gameRunning) {
     myMove()
   }
 }

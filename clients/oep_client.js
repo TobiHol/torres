@@ -18,9 +18,9 @@ async function myMove () {
   if (bestTurn.length === 0) {
     const torres = myInfo.torres
     if (myInfo.playerInfo.id < 2) {
-      oep(torres, false)
+      oep(torres, false, 100, 1000)
     } else {
-      oep(torres, true)
+      oep(torres, true, 100, 1000)
     }
   }
   if (bestTurn.length > 0) {
@@ -74,7 +74,7 @@ function init (pop, popSize, torres, rollout) {
 function randomTurn (torres, biased) {
   const turn = []
   let move = null
-  while (!move || move.action !== 'turn_end') {
+  while (!move || (move.action !== 'turn_end' && move.action !== 'king_place')) {
     move = biased ? torres.getRandomLegalMoveBiased(1) : torres.getRandomLegalMove()
     makeMove(torres, move, torres.activePlayer)
     turn.push(move)
@@ -112,7 +112,7 @@ function uniformCrossover (parent1, parent2, torres) {
   const currTorres = cloneTorres(torres)
   let move = null
   let i = 0
-  while (!move || move.action !== 'turn_end') {
+  while (!move || (move.action !== 'turn_end' && move.action !== 'king_place')) {
     let success = false
     if (Math.random() < 0.5) {
       move = parent1.moves[i]
@@ -160,7 +160,7 @@ function mutate (moves, torres) {
       break
     }
   }
-  if (idx === moves.length - 1 && moves[idx].action !== 'turn_end') { // last element mutated
+  if (idx === moves.length - 1 && moves[idx].action !== 'turn_end' && moves[idx].action !== 'king_place') { // last element mutated
     moves.push({ action: 'turn_end' })
     makeMove(currTorres, { action: 'turn_end' }, currTorres.activePlayer)
   }
@@ -228,7 +228,7 @@ async function update () {
   })
   myInfo.playerInfo = playerInfo
   myInfo.torres = torres
-  if (torres.activePlayer === myInfo.playerInfo.id) {
+  if (torres.activePlayer === myInfo.playerInfo.id && torres.gameRunning) {
     myMove()
   }
 }
