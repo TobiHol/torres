@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 const WebSocket = require('ws')
 const events = require('events')
 const Torres = require('../public/javascripts/torres')
@@ -26,43 +27,82 @@ class State {
   constructor (moves, gameState) {
     this.moves = moves
     this.gameState = gameState
+    this.boardValue = this.getBoardValue()
     this.value = this.getValue()
   }
 
+  getBoardValue () {
+    return this.gameState._board.evaluateBoard(myInfo.playerInfo.id)
+  }
+
   getValue () {
-    return evalFunction(evaluateAnyState(this.gameState), myInfo.playerInfo.id)
+    const boardPoints = this.getBoardValue()
+    // const shortPoints = -this.moves.length
+    // const numKnightsPoints = -this.gameState._playerList[myInfo.playerInfo.id]._numKnights
+    return boardPoints
+  }
+}
+
+class Queue {
+  constructor () {
+    this.items = {}
+    this.headIndex = 0
+    this.tailIndex = 0
+  }
+
+  enqueue (item) {
+    this.items[this.tailIndex] = item
+    this.tailIndex++
+  }
+
+  dequeue () {
+    const item = this.items[this.headIndex]
+    delete this.items[this.headIndex]
+    this.headIndex++
+    return item
+  }
+
+  peek () {
+    return this.items[this.headIndex]
+  }
+
+  get length () {
+    return this.tailIndex - this.headIndex
   }
 }
 
 function bestMoveForTurn (torres) {
   const state = new State([], torres)
-  return generateAllTurnsBFS(state).reduce(
-    (bestState, currState) => bestState.value < currState.value ? currState : bestState).moves.concat([{ action: 'turn_end' }])[0]
+  return generateAllTurnsDFS(state)
+  // return generateAllTurnsBFS(state)
 }
 
 function generateAllTurnsBFS (startState) {
   const gameDict = {}
-  const states = [startState]
+  const states = new Queue()
+  states.enqueue(startState)
   while (states.length) {
-    const currState = states.shift()
-    const stringGameState = JSON.stringify(currState.gameState)
-    const stringBoardBoard = JSON.stringify(currState.gameState._board._squares)
-    if (gameDict[stringBoardBoard]) {
+    // TODO this may be unefficient
+    const currState = states.dequeue()
+    const stringGame = JSON.stringify(currState.gameState)
+    const stringBoard = JSON.stringify(currState.gameState._board._squares)
+    if (gameDict[stringBoard]) {
       continue
     }
-    gameDict[stringBoardBoard] = currState
+    gameDict[stringBoard] = currState
     const playerId = currState.gameState.activePlayer
     currState.gameState.getLegalMoves(playerId).forEach(move => {
-      // TODO changed for test
-      if (move.action !== 'turn_end') {
-        const gameState = Torres.assignInstances(JSON.parse(stringGameState))
-        makeMove(gameState, move, playerId)
-        const newMove = currState.moves.concat([move])
-        states.push(new State(newMove, gameState))
-      }
+      if (move.action === 'turn_end') return
+      const game = Torres.assignInstances(JSON.parse(stringGame))
+      makeMove(game, move, playerId)
+      const newMoves = currState.moves.concat([move])
+      const newState = new State(newMoves, game)
+      if (currState.boardValue > newState.boardValue) return
+      states.enqueue(newState)
     })
   }
-  return Object.values(gameDict)
+  return Object.values(gameDict).reduce(
+    (bestState, currState) => bestState.value < currState.value ? currState : bestState).moves.concat([{ action: 'turn_end' }])[0]
 }
 
 function generateAllTurnsDFS (state) {
@@ -78,22 +118,26 @@ function generateAllTurnsDFSRecursion (state, move, gameDict) {
     return
   }
   const id = state.gameState.activePlayer
+  const oldBoardValue = state.getBoardValue()
   makeMoveState(state, move, id)
-  const stringGameState = JSON.stringify(state.gameState)
-  if (!gameDict[stringGameState]) {
-    gameDict[stringGameState] = { moves: JSON.stringify(state.moves), value: state.getValue() }
-    state.gameState.getLegalMoves(id).forEach(newMove => {
-      if (newMove.action !== 'turn_end') {
-        generateAllTurnsDFSRecursion(state, newMove, gameDict)
-      }
-    })
+  const newBoardValue = state.getBoardValue()
+  if (oldBoardValue <= newBoardValue) {
+    const stringGameState = JSON.stringify(state.gameState)
+    if (!gameDict[stringGameState]) {
+      gameDict[stringGameState] = { moves: JSON.stringify(state.moves), value: state.getValue() }
+      state.gameState.getLegalMoves(id).forEach(newMove => {
+        if (newMove.action !== 'turn_end') {
+          generateAllTurnsDFSRecursion(state, newMove, gameDict)
+        }
+      })
+    }
   }
   undoMoveStateNoTurnEnd(state, move)
 }
 
 function generateAllTurnsDFSIterative (state, move, gameDict) {
-  moves = [move]
-  unmoves = []
+  const moves = [move]
+  const unmoves = []
   while (moves.length) {
     move = moves.pop()
     if (move === 'turn_end') {
@@ -117,8 +161,8 @@ function generateAllTurnsDFSIterative (state, move, gameDict) {
 }
 
 // get evals
-function evaluateAnyState (gameState) {
-  return gameState.playerList.map(player => gameState._board.evaluateBoard(player.id) + player.ap)
+function evaluateStateForAll (gameState) {
+  return gameState.playerList.map(player => gameState._board.evaluateBoard(player.id))
 }
 
 // a eval function
