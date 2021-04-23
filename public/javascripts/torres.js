@@ -413,6 +413,58 @@ class Torres {
     return this._board.hasKnightAsNeighbor(this._board.getSquare(x, y), this._activePlayer)
   }
 
+  executeMove (move) {
+    switch (move.action) {
+      case 'block_place':
+        this.placeBlockExecute(this._activePlayer, move.x, move.y)
+        break
+      case 'knight_place':
+        this.placeKnightExecute(this._activePlayer, move.x, move.y)
+        break
+      case 'knight_move':
+        this.moveKnightExecute(this._activePlayer, move.x, move.y, move.destX, move.destY)
+        break
+      case 'king_place':
+        this.placeKingExecute(move.x, move.y)
+        break
+      case 'turn_end':
+        this.endTurnExecute(this._activePlayer)
+        break
+      default:
+        break
+    }
+  }
+
+  undoMove (move, info = null) {
+    switch (move.action) {
+      case 'block_place':
+        this.placeBlockUndo(this._activePlayer, move.x, move.y)
+        break
+      case 'knight_place':
+        this.placeKnightUndo(this._activePlayer, move.x, move.y)
+        break
+      case 'knight_move':
+        this.moveKnightUndo(this._activePlayer, move.x, move.y, move.destX, move.destY)
+        break
+      case 'king_place':
+        this.placeKingUndo(this._activePlayer)
+        break
+      case 'turn_end':
+        this.endTurnUndoTo(info)
+        break
+      default:
+        break
+    }
+  }
+
+  calcBias (move, playerId) {
+    const scoreBefore = this._board.evaluateBoard(playerId, this._phase)
+    this.executeMove(move)
+    const scoreAfter = this._board.evaluateBoard(playerId, this._phase)
+    this.undoMove(move) // 'turn_end' shouldn't occur
+    return 20 * (scoreAfter - scoreBefore) // TODO: add distance to move before
+  }
+
   getLegalMoves (playerId, nullMove = false) {
     if (nullMove && this._gameRunning && this._activePlayer !== playerId) {
       return [{ action: 'null_move' }]
@@ -554,6 +606,84 @@ class Torres {
       }
     }
     return legalMovesPrio1.concat(legalMovesPrio2, legalMovesPrio3)
+  }
+
+  // from worst to best with bias, leave out moves with neg reward
+  getLegalMovesBiased (playerId = this._activePlayer) {
+    const legalMoves = []
+    if (this._gameRunning && this._activePlayer === playerId) {
+      const player = this._playerList[playerId]
+      // end turn
+      if ((this._phase > 0 || this._placedInitKnights[playerId]) && this._playerToPlaceKing === -1) {
+        legalMoves.push({
+          move: { action: 'turn_end' },
+          bias: 0
+        })
+      }
+      // place init knight
+      if (this._phase === 0 && !this._placedInitKnights[playerId]) {
+        for (const square of this._board.squares.filter(s => s.height === 1 && s.knight === -1)) {
+          legalMoves.push({
+            move: { action: 'knight_place', x: square.x, y: square.y },
+            bias: 10
+          })
+        }
+      }
+      // place king
+      if (this._phase > 0 && this._playerToPlaceKing === playerId) {
+        for (const square of this._board.squares.filter(s => s.height > 0 && s.knight === -1)) {
+          const move = { action: 'king_place', x: square.x, y: square.y }
+          const bias = this.calcBias(move, playerId)
+          legalMoves.push({ move, bias })
+        }
+      }
+      if (this._phase > 0 && this._round > 0 && player.ap > 0) {
+        // get knight positions
+        const knightSquares = this._board.getKnightSquares(playerId)
+        // move knight
+        if (player.canMoveKnight()) {
+          for (const square of knightSquares) {
+            // find destinations for knight
+            for (let destX = 0; destX < this._board.width; destX++) {
+              for (let destY = 0; destY < this._board.height; destY++) {
+                if (this._board.canMoveKnight(square.x, square.y, destX, destY, playerId)) { // TODO: more efficient way
+                  const move = { action: 'knight_move', x: square.x, y: square.y, destX, destY }
+                  const bias = this.calcBias(move, playerId)
+                  if (bias >= 0) legalMoves.push({ move, bias })
+                }
+              }
+            }
+          }
+        }
+        // place knight
+        if (player.canPlaceKnight()) {
+          for (const square of knightSquares) {
+            for (const n of this._board.getNeighbors(square.x, square.y)) {
+              if (n.knight === -1 && n.height <= square.height) {
+                legalMoves.push({
+                  move: { action: 'knight_place', x: n.x, y: n.y },
+                  bias: 10
+                })
+              }
+            }
+          }
+        }
+        // place block
+        if (player.canPlaceBlock()) {
+          for (let x = 0; x < this._board.width; x++) {
+            for (let y = 0; y < this._board.height; y++) {
+              if (this._board.canPlaceBlock(x, y)) {
+                const move = { action: 'block_place', x, y }
+                const bias = this.calcBias(move, playerId)
+                if (bias >= 0) legalMoves.push({ move, bias })
+              }
+            }
+          }
+        }
+      }
+    }
+    // TODO: more efficient sorting
+    return legalMoves.sort((a, b) => a.bias - b.bias)
   }
 
   getRandomLegalMove () {
