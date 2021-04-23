@@ -197,7 +197,7 @@ class Torres {
   }
 
   placeKnightExecute (playerId, x, y) {
-    if (this.phase === 0) {
+    if (this._phase === 0) {
       this._placedInitKnights[playerId] = true
     } else {
       this._playerList[playerId].placeKnight()
@@ -282,6 +282,20 @@ class Torres {
     }
 
     return true
+  }
+
+  endTurnExecute (playerId) {
+    if (this._phase > 0 && this._round > 0) {
+      this._playerList[playerId].endTurn()
+    }
+    if (this._phase > 0 && this._round === 0) {
+      this._activePlayer = this._startingPlayer
+    } else {
+      this._activePlayer = (this._activePlayer + 1) % this._numPlayers
+    }
+    if (this._activePlayer === this._startingPlayer) { // end of round
+      this.endRound()
+    }
   }
 
   getInfo () {
