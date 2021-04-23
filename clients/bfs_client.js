@@ -2,6 +2,7 @@
 const WebSocket = require('ws')
 const events = require('events')
 const Torres = require('../public/javascripts/torres')
+const { performance } = require('perf_hooks')
 
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
@@ -12,8 +13,12 @@ const myInfo = {
   torres: null
 }
 
+const TIMELIMIT = 1000
+let t0 = performance.now()
+
 async function myMove () {
   const torres = myInfo.torres
+  t0 = performance.now()
   const action = bestMoveForTurn(torres)
   // await new Promise(resolve => setTimeout(resolve, 100))
   if (action) {
@@ -108,31 +113,37 @@ function generateAllTurnsBFS (startState) {
 function generateAllTurnsDFS (state) {
   const gameDict = {}
   generateAllTurnsDFSRecursion(state, null, gameDict)
+  const id = myInfo.playerInfo.id
+  // special case if cant do turn end
+  let specialCase = true
+  state.gameState.getLegalMoves(id).forEach(move => {
+    if (move.action === 'turn_end') specialCase = false
+  })
+  if (specialCase) {
+    delete gameDict[JSON.stringify(state.gameState)]
+  }
   const stringMoves = Object.values(gameDict).reduce((bestState, currState) => bestState.value < currState.value ? currState : bestState).moves
   const moves = JSON.parse(stringMoves)
   return moves.concat([{ action: 'turn_end' }])[0]
 }
 
 function generateAllTurnsDFSRecursion (state, move, gameDict) {
-  if (move === 'turn_end') {
-    return
-  }
-  const id = state.gameState.activePlayer
+  const id = myInfo.playerInfo.id
   const oldBoardValue = state.getBoardValue()
-  makeMoveState(state, move, id)
+  if (move) makeMoveState(state, move, id)
   const newBoardValue = state.getBoardValue()
   if (oldBoardValue <= newBoardValue) {
     const stringGameState = JSON.stringify(state.gameState)
     if (!gameDict[stringGameState]) {
       gameDict[stringGameState] = { moves: JSON.stringify(state.moves), value: state.getValue() }
-      state.gameState.getLegalMoves(id).forEach(newMove => {
-        if (newMove.action !== 'turn_end') {
+      state.gameState.getLegalMovesOrdered(id).forEach(newMove => {
+        if (newMove.action !== 'turn_end' && (performance.now() - t0 < TIMELIMIT || !TIMELIMIT)) {
           generateAllTurnsDFSRecursion(state, newMove, gameDict)
         }
       })
     }
   }
-  undoMoveStateNoTurnEnd(state, move)
+  if (move) undoMoveStateNoTurnEnd(state, move)
 }
 
 function generateAllTurnsDFSIterative (state, move, gameDict) {
@@ -143,7 +154,7 @@ function generateAllTurnsDFSIterative (state, move, gameDict) {
     if (move === 'turn_end') {
       continue
     }
-    const id = state.gameState.activePlayer
+    const id = myInfo.playerInfo.id
     makeMoveState(state, move)
     unmoves.push(move)
     const stringGameState = JSON.stringify(state)
@@ -193,19 +204,13 @@ function makeMoveAndClone (torres, move, playerId) {
 }
 
 function makeMoveState (state, move) {
-  if (!move) {
-    return
-  }
-  const id = state.gameState.activePlayer
+  const id = myInfo.playerInfo.id
   makeMove(state.gameState, move, id)
   state.moves.push(move)
 }
 
 function undoMoveStateNoTurnEnd (state, move) {
-  if (!move) {
-    return
-  }
-  const id = state.gameState.activePlayer
+  const id = myInfo.playerInfo.id
   undoMoveNoTurnEnd(state.gameState, move, id)
   state.moves.pop()
 }
