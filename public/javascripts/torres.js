@@ -105,7 +105,7 @@ class Torres {
       case 'random':
         this._board.initCastles()
         this._board.initKnights(this._playerList)
-        this._round = 1
+        this._round = 0
         this._phase = 1
         this._playerToPlaceKing = this._numPlayers - 1
         this._activePlayer = this._playerToPlaceKing
@@ -122,7 +122,7 @@ class Torres {
       case 'balanced': // TODO: extend for variable board size
         this._board.initCastles()
         this._board.initKnights(this._playerList, true)
-        this._round = 1
+        this._round = 0
         this._phase = 1
         this._playerToPlaceKing = this._numPlayers - 1
         this._activePlayer = this._playerToPlaceKing
@@ -138,7 +138,7 @@ class Torres {
   }
 
   placeBlock (playerId, x, y) {
-    if (!this._gameRunning || this._phase === 0 || this._activePlayer !== playerId) return false
+    if (!this._gameRunning || this._phase === 0 || this._round === 0 || this._activePlayer !== playerId) return false
     const player = this._playerList[playerId]
 
     // check wether action is illegal
@@ -178,6 +178,7 @@ class Torres {
     const player = this._playerList[playerId]
 
     if (this._phase > 0) {
+      if (this._round === 0) return false
       // check wether action is illegal
       const placement = this._board.canPlaceKnight(x, y, playerId)
       if (!placement || !player.canPlaceKnight()) return false
@@ -210,7 +211,7 @@ class Torres {
   }
 
   moveKnight (playerId, x, y, destX, destY) {
-    if (!this._gameRunning || this._phase === 0 || this._activePlayer !== playerId) return false
+    if (!this._gameRunning || this._phase === 0 || this._round === 0 || this._activePlayer !== playerId) return false
     const player = this._playerList[playerId]
 
     // check wether action is illegal
@@ -235,7 +236,7 @@ class Torres {
   }
 
   placeKing (playerId, x, y) {
-    if (!this._gameRunning || this._activePlayer !== playerId || playerId !== this._playerToPlaceKing) return false
+    if (!this._gameRunning || this._phase === 0 || this._round !== 0 || this._activePlayer !== playerId || playerId !== this._playerToPlaceKing) return false
 
     // check wether action is illegal
     const placement = this._board.canPlaceKing(x, y)
@@ -244,7 +245,7 @@ class Torres {
     // execute action
     this._board.placeKing(placement.square)
     this._playerToPlaceKing = -1
-    this._activePlayer = this._startingPlayer
+    // this._activePlayer = this._startingPlayer
 
     return true
   }
@@ -252,13 +253,13 @@ class Torres {
   placeKingExecute (x, y) {
     this._board.placeKing(this._board.getSquare(x, y))
     this._playerToPlaceKing = -1
-    this._activePlayer = this._startingPlayer
+    // this._activePlayer = this._startingPlayer
   }
 
   placeKingUndo (playerId) {
     this._board.removeKing()
     this._playerToPlaceKing = playerId
-    this._activePlayer = playerId
+    // this._activePlayer = playerId
   }
 
   endTurn (playerId) {
@@ -266,11 +267,16 @@ class Torres {
 
     if (this._phase === 0 && !this._placedInitKnights[playerId]) return false
 
-    if (this._phase > 0) {
+    if (this._phase > 0 && this._round === 0 && this._playerToPlaceKing !== -1) return false
+
+    if (this._phase > 0 && this._round > 0) {
       this._playerList[playerId].endTurn()
     }
-
-    this._activePlayer = (this._activePlayer + 1) % this._numPlayers
+    if (this._phase > 0 && this._round === 0) {
+      this._activePlayer = this._startingPlayer
+    } else {
+      this._activePlayer = (this._activePlayer + 1) % this._numPlayers
+    }
     if (this._activePlayer === this._startingPlayer) { // end of round
       this.endRound()
     }
@@ -308,7 +314,7 @@ class Torres {
   }
 
   endRound () {
-    if (this._phase > 0) {
+    if (this._phase > 0 && this._round > 0) {
       const absRound = (this._round - 1) + this._numRoundsPerPhase.reduce((sum, rounds, i) => i < this._phase - 1 ? sum + rounds : sum, 0)
       for (const p of this._playerList) {
         p.endRound(absRound)
@@ -334,7 +340,7 @@ class Torres {
     this._board.removeKing()
     this._playerToPlaceKing = this._startingPlayer === 0 ? this._numPlayers - 1 : this._startingPlayer - 1
     this._activePlayer = this._playerToPlaceKing
-    this._round = 1
+    this._round = 0
     this._phase++
   }
 
@@ -414,7 +420,7 @@ class Torres {
         for (const square of this._board.squares.filter(s => s.height > 0 && s.knight === -1)) {
           legalMoves.push({ action: 'king_place', x: square.x, y: square.y })
         }
-      } else if (this._phase > 0 && player.ap > 0 && this._playerToPlaceKing === -1) {
+      } else if (this._phase > 0 && this._round > 0 && player.ap > 0) {
         if (this._phase > 0 && player.canPlaceBlock()) {
           for (let x = 0; x < this._board.width; x++) {
             for (let y = 0; y < this._board.height; y++) {
@@ -478,7 +484,7 @@ class Torres {
         for (const square of this._board.squares.filter(s => s.height > 0 && s.knight === -1)) {
           legalMovesPrio1.push({ action: 'king_place', x: square.x, y: square.y })
         }
-      } else if (this._phase > 0 && player.ap > 0 && this._playerToPlaceKing === -1) {
+      } else if (this._phase > 0 && this._round > 0 && player.ap > 0) {
         // get knight positions
         const knightPos = this._board.getKnightPositionsOfPlayer(playerId)
         // move knight
@@ -564,7 +570,7 @@ class Torres {
         legalMoves.push({ action: 'king_place', x: square.x, y: square.y })
         bias.push(1)
       }
-    } else if (this._phase > 0 && player.ap > 0 && this._playerToPlaceKing === -1) {
+    } else if (this._phase > 0 && this._round > 0 && player.ap > 0) {
       // get knight positions
       const knightPos = this._board.getKnightPositionsOfPlayer(this._activePlayer)
       // move knight
