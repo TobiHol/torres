@@ -23,16 +23,17 @@ async function myMove () {
   }
 }
 
-async function update () {
-  const playerInfo = await new Promise(resolve => {
-    send('status_request', ['player_info'])
-    messageParser.once('player_info_response', (data) => resolve(data))
-  })
+async function update (updatePI = true) {
+  if (updatePI) {
+    myInfo.playerInfo = await new Promise(resolve => {
+      send('status_request', ['player_info'])
+      messageParser.once('player_info_response', (data) => resolve(data))
+    })
+  }
   const torres = await new Promise(resolve => {
     send('status_request', ['game_state'])
     messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
   })
-  myInfo.playerInfo = playerInfo
   myInfo.torres = torres
   if (torres.activePlayer === myInfo.playerInfo.id && torres.gameRunning) {
     myMove()
@@ -67,7 +68,9 @@ messageParser.on('game_end', (data) => {
 })
 
 messageParser.on('move_update', (data) => {
-  update()
+  if (data.next_player === myInfo.playerInfo.id) {
+    update(false)
+  }
 })
 
 messageParser.on('move_response', (data) => {

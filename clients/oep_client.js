@@ -16,19 +16,14 @@ let bestTurn = []
 
 async function myMove () {
   if (bestTurn.length === 0) {
-    const torres = myInfo.torres
-    if (myInfo.playerInfo.id < 2) {
-      oep(torres, false, 100, 1000)
-    } else {
-      oep(torres, true, 100, 1000)
-    }
+    oep(myInfo.torres)
   }
   if (bestTurn.length > 0) {
     send('move', bestTurn.shift())
   }
 }
 
-function oep (torres, rollout = false, popSize = 100, timeLimit = 10000) {
+function oep (torres, rollout = true, popSize = 200, timeLimit = 1000) {
   const t0 = performance.now()
   let runs = 0
   let population = []
@@ -218,16 +213,17 @@ function makeMove (torres, move, playerId) {
   return legal
 }
 
-async function update () {
-  const playerInfo = await new Promise(resolve => {
-    send('status_request', ['player_info'])
-    messageParser.once('player_info_response', (data) => resolve(data))
-  })
+async function update (updatePI = true) {
+  if (updatePI) {
+    myInfo.playerInfo = await new Promise(resolve => {
+      send('status_request', ['player_info'])
+      messageParser.once('player_info_response', (data) => resolve(data))
+    })
+  }
   const torres = await new Promise(resolve => {
     send('status_request', ['game_state'])
     messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
   })
-  myInfo.playerInfo = playerInfo
   myInfo.torres = torres
   if (torres.activePlayer === myInfo.playerInfo.id && torres.gameRunning) {
     myMove()
@@ -263,7 +259,9 @@ messageParser.on('game_end', (data) => {
 })
 
 messageParser.on('move_update', (data) => {
-  update()
+  if (data.next_player === myInfo.playerInfo.id) {
+    update(false)
+  }
 })
 
 messageParser.on('move_response', (data) => {
