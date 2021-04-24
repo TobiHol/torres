@@ -70,7 +70,7 @@ function randomTurn (torres, biased) {
   const turn = []
   let move = null
   while (!move || move.action !== 'turn_end') {
-    move = biased ? torres.getRandomLegalMoveBiased(1) : torres.getRandomLegalMove()
+    move = biased ? torres.getRandomLegalMoveBiased() : torres.getRandomLegalMove()
     torres.executeMove(move)
     turn.push(move)
   }
@@ -127,7 +127,7 @@ function uniformCrossover (parent1, parent2, torres) {
     }
     if (!success) {
       if (!move || !makeMove(currTorres, move, currTorres.activePlayer)) { // both parent's moves are illegal
-        move = currTorres.getRandomLegalMoveBiased(1) // TODO: first try i++
+        move = currTorres.getRandomLegalMoveBiased() // TODO: first try i++
         currTorres.executeMove(move)
       }
     }
@@ -143,11 +143,11 @@ function mutate (moves, torres) {
   for (let i = 0; i < idx; i++) {
     currTorres.executeMove(moves[i])
   }
-  let newMove = currTorres.getRandomLegalMoveBiased(1)
+  let newMove = currTorres.getRandomLegalMoveBiased()
   moves[idx] = newMove
   for (let i = idx; i < moves.length; i++) {
     if (!makeMove(currTorres, moves[i], currTorres.activePlayer)) {
-      newMove = currTorres.getRandomLegalMoveBiased(1)
+      newMove = currTorres.getRandomLegalMoveBiased()
       currTorres.executeMove(newMove)
       moves[i] = newMove
     }

@@ -405,10 +405,6 @@ class Torres {
     return rpp
   }
 
-  isMovingUp (x, y, destX, destY) {
-    return this._board.isMovingUp(x, y, destX, destY)
-  }
-
   hasKnightAsNeighbor (x, y) {
     return this._board.hasKnightAsNeighbor(this._board.getSquare(x, y), this._activePlayer)
   }
@@ -509,13 +505,8 @@ class Torres {
         }
         if (this._phase > 0 && player.canMoveKnight()) {
           for (const square of knightSquares) {
-            // find destinations for knight
-            for (let destX = 0; destX < this._board.width; destX++) {
-              for (let destY = 0; destY < this._board.height; destY++) {
-                if (this._board.canMoveKnight(square.x, square.y, destX, destY, playerId)) {
-                  legalMoves.push({ action: 'knight_move', x: square.x, y: square.y, destX, destY })
-                }
-              }
+            for (const dest of this._board.findKnightDestinations(square)) {
+              legalMoves.push({ action: 'knight_move', x: square.x, y: square.y, destX: dest.x, destY: dest.y })
             }
           }
         }
@@ -556,18 +547,11 @@ class Torres {
         // move knight
         if (player.canMoveKnight()) {
           for (const square of knightPos.squares) {
-            // find destinations for knight
-            for (let destX = 0; destX < this._board.width; destX++) {
-              for (let destY = 0; destY < this._board.height; destY++) {
-                if (this._board.canMoveKnight(square.x, square.y, destX, destY, playerId)) {
-                  const destSquare = this._board.getSquare(destX, destY)
-                  if (destSquare.castle !== -1 && destSquare.height > square.height &&
-                    (!(destSquare.castle in knightPos.highest) || destSquare.height > knightPos.highest[destSquare.castle])) {
-                    legalMovesPrio1.push({ action: 'knight_move', x: square.x, y: square.y, destX, destY })
-                  } else {
-                    legalMovesPrio3.push({ action: 'knight_move', x: square.x, y: square.y, destX, destY })
-                  }
-                }
+            for (const dest of this._board.findKnightDestinations(square)) {
+              if (dest.height > square.height && (!(dest.castle in knightPos.highest) || dest.height > knightPos.highest[dest.castle])) {
+                legalMovesPrio1.push({ action: 'knight_move', x: square.x, y: square.y, destX: dest.x, destY: dest.y })
+              } else {
+                legalMovesPrio3.push({ action: 'knight_move', x: square.x, y: square.y, destX: dest.x, destY: dest.y })
               }
             }
           }
@@ -608,7 +592,7 @@ class Torres {
     return legalMovesPrio1.concat(legalMovesPrio2, legalMovesPrio3)
   }
 
-  // from worst to best with bias, leave out moves with neg reward
+  // from worst to best with bias, leave out moves with neg bias
   getLegalMovesBiased (playerId = this._activePlayer) {
     const legalMoves = []
     if (this._gameRunning && this._activePlayer === playerId) {
@@ -643,15 +627,10 @@ class Torres {
         // move knight
         if (player.canMoveKnight()) {
           for (const square of knightSquares) {
-            // find destinations for knight
-            for (let destX = 0; destX < this._board.width; destX++) {
-              for (let destY = 0; destY < this._board.height; destY++) {
-                if (this._board.canMoveKnight(square.x, square.y, destX, destY, playerId)) { // TODO: more efficient way
-                  const move = { action: 'knight_move', x: square.x, y: square.y, destX, destY }
-                  const bias = this.calcBias(move, playerId)
-                  if (bias >= 0) legalMoves.push({ move, bias })
-                }
-              }
+            for (const dest of this._board.findKnightDestinations(square)) {
+              const move = { action: 'knight_move', x: square.x, y: square.y, destX: dest.x, destY: dest.y }
+              const bias = this.calcBias(move, playerId)
+              if (bias >= 0) legalMoves.push({ move, bias })
             }
           }
         }
@@ -691,7 +670,7 @@ class Torres {
     return legalMoves[Math.floor(Math.random() * legalMoves.length)]
   }
 
-  getRandomLegalMoveBiased (biasTurnEnd = 40) {
+  getRandomLegalMoveBiased (biasTurnEnd = 1) {
     const legalMoves = []
     const bias = []
 
@@ -720,20 +699,10 @@ class Torres {
       // move knight
       if (player.canMoveKnight()) {
         for (const square of knightPos.squares) {
-          // find destinations for knight
-          for (let destX = 0; destX < this._board.width; destX++) {
-            for (let destY = 0; destY < this._board.height; destY++) {
-              if (this._board.canMoveKnight(square.x, square.y, destX, destY, this._activePlayer)) {
-                legalMoves.push({ action: 'knight_move', x: square.x, y: square.y, destX, destY })
-                const destSquare = this._board.getSquare(destX, destY)
-                if (destSquare.castle !== -1 && destSquare.height > square.height &&
-                  (!(destSquare.castle in knightPos.highest) || destSquare.height > knightPos.highest[destSquare.castle])) { // knight will become highest on castle
-                  bias.push(100)
-                } else {
-                  bias.push(1)
-                }
-              }
-            }
+          for (const dest of this._board.findKnightDestinations(square)) {
+            const move = { action: 'knight_move', x: square.x, y: square.y, destX: dest.x, destY: dest.y }
+            legalMoves.push(move)
+            bias.push(this.calcBias(move, this._activePlayer))
           }
         }
       }
@@ -743,29 +712,20 @@ class Torres {
           for (const n of this._board.getNeighbors(square.x, square.y)) {
             if (n.knight === -1 && n.height <= square.height) {
               legalMoves.push({ action: 'knight_place', x: n.x, y: n.y })
-              bias.push(5)
+              bias.push(10)
             }
           }
         }
       }
       // place block
       if (player.canPlaceBlock()) {
-        const highestPerCastle = this._board.getHighestKnightsPerCastle()
         for (let x = 0; x < this._board.width; x++) {
           for (let y = 0; y < this._board.height; y++) {
             const placement = this._board.canPlaceBlock(x, y)
             if (placement) {
-              legalMoves.push({ action: 'block_place', x, y })
-              if (placement.castleId in knightPos.highest) { // one of the player's castles
-                if (highestPerCastle[placement.castleId] === this._activePlayer ||
-                  this._board.hasKnightAsNeighbor(placement.square, this._activePlayer)) {
-                  bias.push(20)
-                } else {
-                  bias.push(3)
-                }
-              } else {
-                bias.push(1)
-              }
+              const move = { action: 'block_place', x, y }
+              legalMoves.push(move)
+              bias.push(this.calcBias(move, this._activePlayer))
             }
           }
         }

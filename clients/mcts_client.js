@@ -106,7 +106,7 @@ function defaultPolicy (torres, deterministic, epsilon) {
     if (deterministic || Math.random() > epsilon) {
       move = torres.getDeterministicLegalMove() // follow simple greedy heuristic (based on getLegalMovesOrdered)
     } else {
-      move = torres.getRandomLegalMoveBiased(1)
+      move = torres.getRandomLegalMoveBiased()
     }
     torres.executeMove(move)
   }
@@ -133,7 +133,6 @@ class Node {
     this.visits = 0
     this.children = []
     this.bias = bias
-    // this.bias = this.calculateBias()
     this.depth = depth
   }
 

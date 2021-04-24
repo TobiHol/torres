@@ -116,16 +116,6 @@ class Board {
     return highestKnights
   }
 
-  isMovingUp (x, y, destX, destY) {
-    const startSquare = this.getSquare(x, y)
-    const destSquare = this.getSquare(destX, destY)
-    if (destSquare.castle === -1 || destSquare.height <= startSquare.height) return false
-    const higherKnights = this._squares.filter(square =>
-      square.castle === destSquare.castle && square.knight === startSquare.knight && square.height >= destSquare.height)
-    if (higherKnights.length !== 0) return false
-    return true
-  }
-
   canPlaceBlock (x, y) {
     const square = this.getSquare(x, y)
     if (!square) return false
@@ -200,21 +190,46 @@ class Board {
     if (!startSquare || !destSquare) return false
     if (startSquare.knight !== playerId || destSquare.knight !== -1) return false // not correct knight or source not free
     if (destSquare.height - startSquare.height > 1) return false // only move at most one up
-    if ((Math.abs(x - destX) !== 1 || y !== destY) && (Math.abs(y - destY) !== 1 || x !== destX)) { // only move one
-      // movement through castles
-      if (destSquare.height > startSquare.height) return false // cannot move up through castle
-      const startNeighborIds = []
-      for (const n of this.getNeighbors(x, y)) {
-        if (n.castle !== -1 && n.height > startSquare.height) startNeighborIds.push(n.castle)
+    for (const tmpDest of this.findKnightDestinations(startSquare)) {
+      if (tmpDest.x === destSquare.x && tmpDest.y === destSquare.y) {
+        return { startSquare, destSquare }
       }
-      const destNeighborIds = []
-      for (const n of this.getNeighbors(destX, destY)) {
-        if (n.castle !== -1 && n.height > destSquare.height) destNeighborIds.push(n.castle)
-      }
-      if (!startNeighborIds.some(id => destNeighborIds.includes(id))) return false // not same castle as entrance and destination available
     }
+    return false
+  }
 
-    return { startSquare, destSquare }
+  findKnightDestinations (startSquare) {
+    const TinyQueue = require('tinyqueue')
+    const prioQueue = new TinyQueue([], (a, b) => a.height - b.height)
+    const destinations = []
+    const visited = new Array(this._squares.length)
+    const found = new Array(this._squares.length)
+    found[startSquare.y * this._width + startSquare.x] = true
+    for (const n of this.getNeighbors(startSquare.x, startSquare.y)) {
+      if (startSquare.height >= n.height - 1 && n.knight === -1) { // move at most one up
+        destinations.push(n)
+        found[n.y * this._width + n.x] = true
+      }
+      if (startSquare.height < n.height) { // castle entrance
+        prioQueue.push({ square: n, height: startSquare.height })
+      }
+    }
+    let idx, current
+    while (prioQueue.length) {
+      current = prioQueue.pop()
+      visited[current.square.y * this._width + current.square.x] = true
+      for (const n of this.getNeighbors(current.square.x, current.square.y)) {
+        idx = n.y * this._width + n.x
+        if (!found[idx] && n.knight === -1 && current.height >= n.height) {
+          destinations.push(n)
+          found[idx] = true
+        }
+        if (!visited[idx] && n.height !== 0) {
+          prioQueue.push({ square: n, height: n.height > current.height ? current.height : n.height - 1 })
+        }
+      }
+    }
+    return destinations
   }
 
   moveKnight (startSquare, destSquare, playerId) {
