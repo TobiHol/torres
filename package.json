@@ -1,6 +1,7 @@
 {
   "name": "torres",
   "version": "0.0.0",
+  "type": "module",
   "description": "",
   "main": "app.js",
   "scripts": {

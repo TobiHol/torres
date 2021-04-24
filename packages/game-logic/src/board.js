@@ -1,3 +1,5 @@
+import TinyQueue from 'tinyqueue'
+
 class Board {
   constructor ({ height, width, numCastles, startingBlocks, colors }) {
     this._height = height
@@ -199,7 +201,6 @@ class Board {
   }
 
   findKnightDestinations (startSquare) {
-    const TinyQueue = require('tinyqueue')
     const prioQueue = new TinyQueue([], (a, b) => a.height - b.height)
     const destinations = []
     const visited = new Array(this._squares.length)
@@ -325,4 +326,4 @@ class Board {
   }
 }
 
-module.exports = Board
+export default Board

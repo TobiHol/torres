@@ -1,10 +1,10 @@
-const WebSocket = require('ws')
-const events = require('events')
-const { performance } = require('perf_hooks')
-const Torres = require('../public/javascripts/torres')
+import WebSocket from 'ws'
+import { EventEmitter } from 'events'
+import { performance } from 'perf_hooks'
+import Torres from '../../game-logic/src/torres.js'
 
 const ws = new WebSocket('ws://localhost:3000/')
-const messageParser = new events.EventEmitter()
+const messageParser = new EventEmitter()
 
 const myInfo = {
   type: 'oep_ai',
@@ -14,7 +14,7 @@ const myInfo = {
 
 let bestTurn = []
 
-async function myMove () {
+function myMove () {
   if (bestTurn.length === 0) {
     oep(myInfo.torres)
   }

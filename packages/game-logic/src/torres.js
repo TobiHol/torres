@@ -1,5 +1,5 @@
-const Board = require('./board')
-const Player = require('./player')
+import Board from './board.js'
+import Player from './player.js'
 
 class Torres {
   constructor (numPlayers = 2, initMode = 'random',
@@ -775,4 +775,4 @@ class Torres {
   }
 }
 
-module.exports = Torres
+export default Torres

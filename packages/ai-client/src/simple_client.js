@@ -1,9 +1,9 @@
-const WebSocket = require('ws')
-const events = require('events')
-const Torres = require('../public/javascripts/torres')
+import WebSocket from 'ws'
+import { EventEmitter } from 'events'
+import Torres from '../../game-logic/src/torres.js'
 
 const ws = new WebSocket('ws://localhost:3000/')
-const messageParser = new events.EventEmitter()
+const messageParser = new EventEmitter()
 
 const myInfo = {
   type: 'random_ai',
