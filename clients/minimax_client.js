@@ -44,9 +44,7 @@ function minimax (torres, playerId, depth, alpha, beta, timeLimit = null, t0 = n
   if (depth === 0 || !torres.gameRunning) { // should always be at end of turn
     const moveValue = {
       move: null,
-      value: (torres.isAtEndOfPhase() || !torres.gameRunning)
-        ? getValue(torres.getPointsPerPlayer(), playerId)
-        : getValue(torres.evaluateState(), playerId)
+      value: torres.getRewardPerPlayer(!torres.isAtEndOfPhase() && torres.gameRunning)[playerId]
     }
     return moveValue
   }
@@ -104,9 +102,7 @@ function negamax (torres, playerId, depth, alpha, beta, prevPlayer, timeLimit, t
   if (depth === 0 || !torres.gameRunning) {
     const moveValue = {
       move: null,
-      value: -((torres.isAtEndOfPhase() || !torres.gameRunning)
-        ? getValue(torres.getPointsPerPlayer(), prevPlayer)
-        : getValue(torres.evaluateState(), prevPlayer))
+      value: -(torres.getRewardPerPlayer(!torres.isAtEndOfPhase() && torres.gameRunning)[prevPlayer]) // TODO: prevPlayer doesn't work with king
     }
     return moveValue
   }
@@ -178,11 +174,6 @@ function negamax (torres, playerId, depth, alpha, beta, prevPlayer, timeLimit, t
   }
 
   return bestMove
-}
-
-// TODO: use torres methods
-function getValue (pointsPerPlayer, playerId) {
-  return pointsPerPlayer.reduce((score, points, i) => i === playerId ? score + points : score - points, 0)
 }
 
 async function update (updatePI = true) {
