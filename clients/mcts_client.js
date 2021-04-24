@@ -12,15 +12,9 @@ const myInfo = {
   torres: null
 }
 
-// let bestTurn = []
-
 function myMove () {
-  // if (bestTurn.length === 0) {
   const bestMove = mcts(cloneTorres(myInfo.torres))
-  // }
-  // if (bestTurn.length > 0) {
   send('move', bestMove)
-  // }
 }
 
 function mcts (torres, c = 10, d = 1, epsilon = 0.5, timeLimit = 1000) {
@@ -40,7 +34,6 @@ function mcts (torres, c = 10, d = 1, epsilon = 0.5, timeLimit = 1000) {
       break
     }
   }
-  // fillBestTurn(rootNode)
   console.log('runs: ' + rootNode.visits)
   return rootNode.bestChild().move
 }
@@ -115,7 +108,7 @@ function defaultPolicy (torres, deterministic, epsilon) {
     } else {
       move = torres.getRandomLegalMoveBiased(1)
     }
-    makeMove(torres, move)
+    torres.executeMove(move)
   }
   return torres.getRewardPerPlayer(true)
 }
@@ -129,23 +122,6 @@ function backup (node, rewardPP) {
     node = node.parent
   }
 }
-
-/*
-function fillBestTurn (rootNode) {
-  // best moves until 'turn_end'
-  let node = rootNode
-  while (bestTurn.length === 0 || bestTurn[bestTurn.length - 1].action !== 'turn_end') {
-    if (node.children.length === 0) {
-      break
-    }
-    node = node.bestChild()
-    bestTurn.push(node.move)
-    if (node.visits < 100) {
-      break
-    }
-  }
-}
-*/
 
 class Node {
   constructor (torres, parent, move, bias, untriedMoves, depth) {
@@ -164,7 +140,7 @@ class Node {
   expand () {
     const nextMoveBias = this.untriedMoves.pop()
     const torres = cloneTorres(this.torres)
-    makeMove(torres, nextMoveBias.move)
+    torres.executeMove(nextMoveBias.move)
     const newMoves = torres.getLegalMovesBiased(torres.activePlayer)
     const child = new Node(torres, this, nextMoveBias.move, nextMoveBias.bias, newMoves, this.depth + 1)
     this.children.push(child)
@@ -190,54 +166,6 @@ class Node {
       node.visits > prev.visits
         ? node
         : prev)
-  }
-
-  /*
-  // TODO: smooth function
-  calculateBias () {
-    if (!this.move) {
-      return 0
-    }
-    // TODO: adjust
-    switch (this.move.action) {
-      case 'turn_end':
-        return -10
-      case 'knight_move':
-        if (this.torres.isMovingUp(this.move.x, this.move.y, this.move.destX, this.move.destY)) {
-          return 80
-        }
-        break
-      case 'block_place':
-        if (this.torres.hasKnightAsNeighbor(this.move.x, this.move.y)) {
-          return 20
-        }
-        break
-      default:
-        return 0
-    }
-  }
-  */
-}
-
-function makeMove (torres, move) {
-  switch (move.action) {
-    case 'block_place':
-      torres.placeBlockExecute(torres.activePlayer, move.x, move.y)
-      break
-    case 'knight_place':
-      torres.placeKnightExecute(torres.activePlayer, move.x, move.y)
-      break
-    case 'knight_move':
-      torres.moveKnightExecute(torres.activePlayer, move.x, move.y, move.destX, move.destY)
-      break
-    case 'king_place':
-      torres.placeKingExecute(move.x, move.y)
-      break
-    case 'turn_end':
-      torres.endTurnExecute(torres.activePlayer)
-      break
-    default:
-      break
   }
 }
 

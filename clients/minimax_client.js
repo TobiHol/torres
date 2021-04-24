@@ -58,10 +58,10 @@ function minimax (torres, playerId, depth, alpha, beta, timeLimit = null, t0 = n
     for (const move of moves) {
       let info = {}
       if (move.action === 'turn_end') info = torres.getInfo()
-      makeMove(torres, move, torres.activePlayer)
+      torres.executeMove(move)
       // only reduce depth if move is turn_end
       const childMove = minimax(torres, playerId, move.action === 'turn_end' ? depth - 1 : depth, alpha, beta, timeLimit, t0)
-      undoMove(torres, move, torres.activePlayer, info)
+      torres.undoMove(move, info)
       if (childMove.value > value) {
         value = childMove.value
         bestMove = { move, value: childMove.value }
@@ -80,10 +80,10 @@ function minimax (torres, playerId, depth, alpha, beta, timeLimit = null, t0 = n
     for (const move of moves) {
       let info = {}
       if (move.action === 'turn_end') info = torres.getInfo()
-      makeMove(torres, move, torres.activePlayer)
+      torres.executeMove(move)
       // only reduce depth if move is turn_end
       const childMove = minimax(torres, playerId, move.action === 'turn_end' ? depth - 1 : depth, alpha, beta, timeLimit, t0)
-      undoMove(torres, move, torres.activePlayer, info)
+      torres.undoMove(move, info)
       if (childMove.value < value) {
         value = childMove.value
         bestMove = { move, value: childMove.value }
@@ -136,7 +136,7 @@ function negamax (torres, playerId, depth, alpha, beta, prevPlayer, timeLimit, t
   for (const move of moves) {
     let info = {}
     if (move.action === 'turn_end') info = torres.getInfo()
-    makeMove(torres, move, playerId)
+    torres.executeMove(move)
 
     // recursive call
     const childMove = negamax(torres, playerId === 1 ? 0 : 1, move.action === 'turn_end' ? depth - 1 : depth, // only reduce depth if move is turn is ended
@@ -144,7 +144,7 @@ function negamax (torres, playerId, depth, alpha, beta, prevPlayer, timeLimit, t
 
     childMove.value = -childMove.value // - negamax
     // get back to original game state
-    undoMove(torres, move, playerId, info)
+    torres.undoMove(move, info)
     if (childMove.value > value) {
       value = childMove.value
       bestMove = { move, value: childMove.value }
@@ -180,52 +180,9 @@ function negamax (torres, playerId, depth, alpha, beta, prevPlayer, timeLimit, t
   return bestMove
 }
 
+// TODO: use torres methods
 function getValue (pointsPerPlayer, playerId) {
   return pointsPerPlayer.reduce((score, points, i) => i === playerId ? score + points : score - points, 0)
-}
-
-function makeMove (torres, move, playerId) {
-  switch (move.action) {
-    case 'block_place':
-      torres.placeBlockExecute(playerId, move.x, move.y)
-      break
-    case 'knight_place':
-      torres.placeKnightExecute(playerId, move.x, move.y)
-      break
-    case 'knight_move':
-      torres.moveKnightExecute(playerId, move.x, move.y, move.destX, move.destY)
-      break
-    case 'king_place':
-      torres.placeKingExecute(move.x, move.y)
-      break
-    case 'turn_end':
-      torres.endTurn(playerId)
-      break
-    default:
-      break
-  }
-}
-
-function undoMove (torres, move, playerId, info) {
-  switch (move.action) {
-    case 'block_place':
-      torres.placeBlockUndo(playerId, move.x, move.y)
-      break
-    case 'knight_place':
-      torres.placeKnightUndo(playerId, move.x, move.y)
-      break
-    case 'knight_move':
-      torres.moveKnightUndo(playerId, move.x, move.y, move.destX, move.destY)
-      break
-    case 'king_place':
-      torres.placeKingUndo(playerId)
-      break
-    case 'turn_end':
-      torres.endTurnUndoTo(info)
-      break
-    default:
-      break
-  }
 }
 
 async function update (updatePI = true) {

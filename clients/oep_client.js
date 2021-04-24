@@ -71,7 +71,7 @@ function randomTurn (torres, biased) {
   let move = null
   while (!move || move.action !== 'turn_end') {
     move = biased ? torres.getRandomLegalMoveBiased(1) : torres.getRandomLegalMove()
-    makeMove(torres, move, torres.activePlayer)
+    torres.executeMove(move)
     turn.push(move)
   }
   return turn
@@ -128,7 +128,7 @@ function uniformCrossover (parent1, parent2, torres) {
     if (!success) {
       if (!move || !makeMove(currTorres, move, currTorres.activePlayer)) { // both parent's moves are illegal
         move = currTorres.getRandomLegalMoveBiased(1) // TODO: first try i++
-        makeMove(currTorres, move, currTorres.activePlayer)
+        currTorres.executeMove(move)
       }
     }
     childMoves.push(move)
@@ -141,14 +141,14 @@ function mutate (moves, torres) {
   const idx = Math.floor(Math.random() * moves.length) // select random move to mutate
   const currTorres = cloneTorres(torres)
   for (let i = 0; i < idx; i++) {
-    makeMove(currTorres, moves[i], currTorres.activePlayer)
+    currTorres.executeMove(moves[i])
   }
   let newMove = currTorres.getRandomLegalMoveBiased(1)
   moves[idx] = newMove
   for (let i = idx; i < moves.length; i++) {
     if (!makeMove(currTorres, moves[i], currTorres.activePlayer)) {
       newMove = currTorres.getRandomLegalMoveBiased(1)
-      makeMove(currTorres, newMove, currTorres.activePlayer)
+      currTorres.executeMove(newMove)
       moves[i] = newMove
     }
     if (i < moves.length - 1 && moves[i].action === 'turn_end') {
@@ -158,7 +158,7 @@ function mutate (moves, torres) {
   }
   if (idx === moves.length - 1 && moves[idx].action !== 'turn_end') { // last element mutated
     moves.push({ action: 'turn_end' })
-    makeMove(currTorres, { action: 'turn_end' }, currTorres.activePlayer)
+    currTorres.executeMove({ action: 'turn_end' })
   }
   return { moves, torres: currTorres }
 }
@@ -176,7 +176,7 @@ class Genome {
         let move
         while (torres.activePlayer !== myInfo.playerInfo.id && torres.gameRunning) {
           move = torres.getDeterministicLegalMove()
-          makeMove(torres, move, torres.activePlayer)
+          torres.executeMove(move)
         }
       }
       this.fitness = torres.getRewardPerPlayer(true)[myInfo.playerInfo.id]
