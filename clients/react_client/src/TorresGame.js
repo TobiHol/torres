@@ -115,7 +115,9 @@ class Game extends React.Component {
       console.log('game ended')
       update()
       if (_this.state.restartAutomatically){
-        this.send('command', ['game_reset', 'game_init'])
+        setTimeout(() => {
+          this.send('command', ['game_reset', 'game_init'])
+        }, 5000)
       }
     })
 
@@ -300,9 +302,17 @@ class Game extends React.Component {
       </tr>
     )
     let data = []
-    let i = torres._startingPlayer === -1 ? 0 : torres._startingPlayer
-    while (true) {
-      const {_id, _color, _numKnights, _ap, _numBlocks, _points} = torres._playerList[i]
+    
+    const startId = torres._startingPlayer
+    const numPlayers = torres._numPlayers
+    const playerList = [...(torres._playerList)]
+    if (torres._gameRunning) {
+      playerList.sort((a, b) => ((startId - b._id + numPlayers - 1) % numPlayers) - ((startId - a._id + numPlayers - 1) % numPlayers))
+    } else {
+      playerList.sort((a, b) => b._points - a._points)
+    }
+    playerList.forEach(player => {
+      const {_id, _color, _numKnights, _ap, _numBlocks, _points} = player
       data.push(
         <tr key={_id}>
           <td>{torres._gameRunning && torres._activePlayer === _id ? '>' : ''}</td>
@@ -316,11 +326,7 @@ class Game extends React.Component {
           <td>{_points}</td>
         </tr>
       )
-      i = (i + 1) % torres._numPlayers
-      if (i === torres._startingPlayer || (torres._startingPlayer === -1 && i === 0)) {
-        break
-      }
-    }
+    })
     return (
       <div>
         {/* <h3 id='title'>Player Table</h3> */}
@@ -479,8 +485,6 @@ class Game extends React.Component {
     }
     return (
       <div className='game'>
-        {this.state.stateIndex}
-        {this.stateHistory.length}
         <div className='game-options'>
           {this.renderGameOptions()}
         </div>
