@@ -1,14 +1,14 @@
-import React from 'react';
+import React from 'react'
 
 const host = window.location.hostname
-const client = new WebSocket(`ws://${host}:3000/`);
+const client = new WebSocket(`ws://${host}:3000/`)
 
 function Square(props) {
   return (
     <button className='square' onClick={props.onClick} style={props.style}>
       {props.value}
     </button>
-  );
+  )
 }
 
 function Button(props) {
@@ -16,7 +16,7 @@ function Button(props) {
     <button onClick={props.onClick}>
       {props.value}
     </button>
-  );
+  )
 }
 
 function Checkbox(props) {
@@ -220,7 +220,7 @@ class Game extends React.Component {
         onClick={() => this.handleClick(i, torres)}
         style={style}
       />
-    );
+    )
   }
 
   renderAllSquares(){
@@ -282,7 +282,7 @@ class Game extends React.Component {
            />
           )
       }
-    });
+    })
     return renderedMoves
   }
 
@@ -505,4 +505,4 @@ class Game extends React.Component {
   }
 }
 
-export default Game;
+export default Game

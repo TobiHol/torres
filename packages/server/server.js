@@ -1,32 +1,25 @@
-const express = require('express')
-const logger = require('morgan')
+import express from 'express'
+import logger from 'morgan'
+import WebSocket from 'ws'
+
+import { Torres } from '../game-logic/index.js'
+
 const app = express()
-const WebSocket = require('ws')
 const wss = new WebSocket.Server({ noServer: true })
 const port = process.env.PORT || 3000
 
-// const indexRouter = require('./routes/index')
-// const usersRouter = require('./routes/users')
-
 app.use(express.json())
 app.use(logger('dev'))
-
-// app.use('/', indexRouter)
-// app.use('/users', usersRouter)
 
 /*
   game init
 */
 
 const numPlayers = 4
-const Torres = require('./public/javascripts/torres')
 const torres = new Torres({
-  numPlayers: numPlayers
+  numPlayers: numPlayers,
+  initMode: 'choice'
 })
-
-// for testing
-const { performance } = require('perf_hooks')
-let start
 
 /*
   express API
@@ -165,7 +158,6 @@ wss.on('connection', (ws) => {
         break
       case 'turn_end':
         valid = torres.endTurn(playerId)
-        console.log('\n' + (performance.now() - start) + '\n')
         break
       default:
         break

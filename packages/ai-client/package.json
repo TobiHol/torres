@@ -1,0 +1,22 @@
+{
+  "name": "clients",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node clients.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Hanna Holtdirk",
+  "contributors": [
+    "Hanna Holtdirk",
+    "Tobias Holtdirk"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "tinyqueue": "^2.0.3",
+    "ws": "^7.4.5"
+  }
+}
