@@ -1,30 +1,34 @@
 import { performance } from 'perf_hooks'
 
 import { AiClient } from './ai_client.js'
-import { TIME_LIMIT } from './constants.js'
+import { TIME_LIMIT, MINIMAX, NEGAMAX } from './constants.js'
 
 class MinimaxClient extends AiClient {
-  constructor ({ version = 'MINIMAX', depth = 1 }) {
+  constructor ({ version = MINIMAX, depth = 1 }) {
     super()
     this.VERSION = version
     this.DEPTH = depth
-    this.myInfo.type = 'minimax_ai'
+    switch (version) {
+      case MINIMAX:
+        this.myInfo.type = 'minimax_ai'
+        this.minimaxAlgo = this.minimax
+        break
+      case NEGAMAX:
+        this.myInfo.type = 'negamax_ai'
+        this.minimaxAlgo = this.negamax
+        break
+    }
     this.tt = new TranspositionTable(100000)
-    this.cutoffs = 0
+    this.cutoffs = this.lookups = 0
   }
 
   myMove () {
     this.t0 = performance.now()
     this.tt.clear()
-    this.cutoffs = 0
-    let bestMove
-    if (this.VERSION === 'MINIMAX') {
-      bestMove = this.minimax(this.myInfo.torres, this.myInfo.torres.activePlayer,
-        this.DEPTH, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
-    } else {
-      bestMove = this.negamax(this.myInfo.torres, this.myInfo.torres.activePlayer,
-        this.DEPTH, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, this.myInfo.torres.activePlayer)
-    }
+    this.cutoffs = this.lookups = 0
+
+    const bestMove = this.minimaxAlgo(this.myInfo.torres, this.myInfo.playerInfo.id, this.DEPTH, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
+
     console.log('cutoffs: ' + this.cutoffs)
     console.log('lookups: ' + this.lookups)
 
@@ -94,17 +98,12 @@ class MinimaxClient extends AiClient {
   }
 
   negamax (torres, playerId, depth, alpha, beta, prevPlayer) {
-    if (depth === 0 || !torres.gameRunning) {
-      const moveValue = {
-        move: null,
-        value: -(torres.getRewardPerPlayer(!torres.isAtEndOfPhase() && torres.gameRunning)[prevPlayer]) // TODO: prevPlayer doesn't work with king
-      }
-      return moveValue
-    }
+    // transposition table lookups
     const a = alpha
     const gameState = JSON.stringify(torres)
     let ttEntry = this.tt.get(gameState)
     if (ttEntry && ttEntry.depth >= depth) {
+      this.lookups++
       if (ttEntry.flag === 'EXACT') {
         this.cutoffs++
         return { move: null, value: ttEntry.value }
@@ -116,6 +115,14 @@ class MinimaxClient extends AiClient {
       if (alpha >= beta) {
         return { move: null, value: ttEntry.value }
       }
+    }
+
+    if (depth === 0 || !torres.gameRunning) {
+      const moveValue = {
+        move: null,
+        value: -(torres.getRewardPerPlayer(!torres.isAtEndOfPhase() && torres.gameRunning)[prevPlayer]) // TODO: prevPlayer doesn't work with king?
+      }
+      return moveValue
     }
     const moves = torres.getLegalMovesOrdered(playerId, true)
     let bestMove
@@ -142,10 +149,11 @@ class MinimaxClient extends AiClient {
         this.cutoffs++
         break
       }
-      if (performance.now() - this.t0 > this.TIME_LIMIT) {
+      if (performance.now() - this.t0 > TIME_LIMIT) {
         break
       }
     }
+
     // transposition table store
     ttEntry = {}
     ttEntry.value = value
