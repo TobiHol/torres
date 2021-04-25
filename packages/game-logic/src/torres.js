@@ -5,30 +5,46 @@ class Torres {
   constructor ({
     numPlayers = 2, initMode = 'random',
     boardHeight = 8, boardWidth = 8, numCastles = 8, startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60],
-    numRoundsPerPhase = [4, 4, 4], blocksPerRound = new Array(4 * 3).fill(3), apPerRound = 5, numKnights = 5,
+    apPerRound = 5, numKnights = 5, customBlockDistribution = null,
     playerColors = ['red', 'blue', 'green', 'orange', 'violet', 'yellow', 'brown']
   }) {
-    if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0) || startingBlocks.length !== numCastles) {
-      console.error("parameters don't match")
-    }
-    if (playerColors.length < numPlayers) {
-      console.error('not enough player colors given')
-    }
-
     this._numPlayers = numPlayers
     this._playerColors = playerColors
-
-    this._numPhases = numRoundsPerPhase.length
-    this._numRoundsPerPhase = numRoundsPerPhase
     this._initMode = initMode
 
-    this._playerParams = { numKnights, apPerRound, blocksPerRound }
-    this._boardParams = { height: boardHeight, width: boardWidth, numCastles, startingBlocks, colors: playerColors }
+    // standard phase setup if not otherwise specified
+    let blockDistribution
+    if (customBlockDistribution) {
+      blockDistribution = customBlockDistribution
+    } else {
+      switch (numPlayers) {
+        case 2:
+          blockDistribution = [[3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3]]
+          break
+        case 3:
+          blockDistribution = [[3, 3, 2, 2], [3, 3, 2], [3, 3, 2]]
+          break
+        case 4:
+          blockDistribution = [[2, 2, 2, 2], [2, 2, 2], [2, 2, 2]]
+          break
+        default:
+          blockDistribution = [[2, 2, 2, 2], [2, 2, 2], [2, 2, 2]]
+          console.warn('Warning: No standard setup for ' + numPlayers + ' players. Setup for 4 players was chosen.')
+      }
+    }
+    // get phase properties from block distribution
+    this._numPhases = blockDistribution.length
+    this._numRoundsPerPhase = blockDistribution.map(arr => arr.length)
+
+    this._playerProps = { numKnights, apPerRound, blockDistribution }
+    this._boardProps = { height: boardHeight, width: boardWidth, numCastles, startingBlocks, colors: playerColors }
+
+    this.checkProperties()
 
     // set up players and game board
     this._playerList = [...Array(this._numPlayers).keys()].map(id =>
-      new Player({ id, color: playerColors[id], ...this._playerParams }))
-    this._board = new Board(this._boardParams)
+      new Player({ id, color: playerColors[id], ...this._playerProps }))
+    this._board = new Board(this._boardProps)
 
     this._activePlayer = -1 // index/id of active player
     this._startingPlayer = -1 // index/id of starting player
@@ -86,9 +102,19 @@ class Torres {
     return this._gameRunning
   }
 
+  checkProperties () {
+    // check if given game properties match
+    if (this._boardProps.startingBlocks.length < this._boardProps.numCastles) {
+      throw new Error('not enough starting blocks given')
+    }
+    if (this._boardProps.colors.length < this._numPlayers) {
+      throw new Error('not enough player colors given')
+    }
+  }
+
   resetGame () {
-    this._playerList = [...Array(this._numPlayers).keys()].map(id => new Player({ id, color: this._playerColors[id], ...this._playerParams }))
-    this._board = new Board(this._boardParams)
+    this._playerList = [...Array(this._numPlayers).keys()].map(id => new Player({ id, color: this._playerColors[id], ...this._playerProps }))
+    this._board = new Board(this._boardProps)
     this._activePlayer = -1
     this._startingPlayer = -1
     this._placedInitKnights = null
@@ -153,16 +179,16 @@ class Torres {
 
     // check wether action is illegal
     const placement = this._board.canPlaceBlock(x, y)
-    if (!placement || !player.canPlaceBlock()) return false
+    if (!placement || !player.canPlaceBlock(this._round)) return false
 
     // execute action
-    player.placeBlock()
+    player.placeBlock(this._round)
     this._board.placeBlock(placement.square, placement.castleId)
     return true
   }
 
   placeBlockExecute (playerId, x, y) {
-    this._playerList[playerId].placeBlock()
+    this._playerList[playerId].placeBlock(this._round)
     const square = this._board.getSquare(x, y)
     let castleId
     if (square.height !== 0) {
@@ -179,7 +205,7 @@ class Torres {
   }
 
   placeBlockUndo (playerId, x, y) {
-    this._playerList[playerId].placeBlockUndo()
+    this._playerList[playerId].placeBlockUndo(this._round)
     this._board.placeBlockUndo(x, y)
   }
 
@@ -263,13 +289,11 @@ class Torres {
   placeKingExecute (x, y) {
     this._board.placeKing(this._board.getSquare(x, y))
     this._playerToPlaceKing = -1
-    // this._activePlayer = this._startingPlayer
   }
 
   placeKingUndo (playerId) {
     this._board.removeKing()
     this._playerToPlaceKing = playerId
-    // this._activePlayer = playerId
   }
 
   endTurn (playerId) {
@@ -339,10 +363,7 @@ class Torres {
 
   endRound () {
     if (this._phase > 0 && this._round > 0) {
-      const absRound = (this._round - 1) + this._numRoundsPerPhase.reduce((sum, rounds, i) => i < this._phase - 1 ? sum + rounds : sum, 0)
-      for (const p of this._playerList) {
-        p.endRound(absRound)
-      }
+      this._playerList.forEach(p => p.endRound(this._round))
     }
     if (this._phase === 0 || this._round === this._numRoundsPerPhase[this._phase - 1]) { // end of phase
       this.endPhase()
@@ -353,7 +374,8 @@ class Torres {
 
   endPhase () {
     if (this._phase > 0) {
-      this.endOfPhasEvaluation()
+      this.endOfPhaseEvaluation()
+      this._playerList.forEach(p => p.endPhase(this._phase))
     }
     if (this._phase === this._numPhases) { // end of game
       this.endGame()
@@ -374,10 +396,9 @@ class Torres {
 
   endGame () {
     this._gameRunning = false
-    // TODO
   }
 
-  endOfPhasEvaluation () {
+  endOfPhaseEvaluation () {
     for (const p of this._playerList) {
       const score = this._board.evaluateBoard(p.id, this._phase)
       p.addPoints(score)
@@ -493,7 +514,7 @@ class Torres {
           legalMoves.push({ action: 'king_place', x: square.x, y: square.y })
         }
       } else if (this._phase > 0 && this._round > 0 && player.ap > 0) {
-        if (this._phase > 0 && player.canPlaceBlock()) {
+        if (this._phase > 0 && player.canPlaceBlock(this._round)) {
           for (let x = 0; x < this._board.width; x++) {
             for (let y = 0; y < this._board.height; y++) {
               if (this._board.canPlaceBlock(x, y)) {
@@ -577,7 +598,7 @@ class Torres {
           }
         }
         // place block
-        if (player.canPlaceBlock()) {
+        if (player.canPlaceBlock(this._round)) {
           const highestPerCastle = this._board.getHighestKnightsPerCastle()
           for (let x = 0; x < this._board.width; x++) {
             for (let y = 0; y < this._board.height; y++) {
@@ -658,7 +679,7 @@ class Torres {
           }
         }
         // place block
-        if (player.canPlaceBlock()) {
+        if (player.canPlaceBlock(this._round)) {
           for (let x = 0; x < this._board.width; x++) {
             for (let y = 0; y < this._board.height; y++) {
               if (this._board.canPlaceBlock(x, y)) {
@@ -728,7 +749,7 @@ class Torres {
         }
       }
       // place block
-      if (player.canPlaceBlock()) {
+      if (player.canPlaceBlock(this._round)) {
         for (let x = 0; x < this._board.width; x++) {
           for (let y = 0; y < this._board.height; y++) {
             const placement = this._board.canPlaceBlock(x, y)

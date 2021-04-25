@@ -1,15 +1,15 @@
 class Player {
-  constructor ({ id, color, numKnights, apPerRound, blocksPerRound }) {
+  constructor ({ id, color, numKnights, apPerRound, blockDistribution }) {
     this._id = id
     this._color = color
 
     this._apPerRound = apPerRound
-    this._blocksPerRound = blocksPerRound
-
+    this._blockDistribution = blockDistribution
     this._numKnights = numKnights
+
     // turn based variables
     this._ap = apPerRound
-    this._numBlocks = blocksPerRound[0]
+    this._numBlocks = [...this._blockDistribution[0]] // current number of blocks in phase
 
     this._points = 0
   }
@@ -44,18 +44,18 @@ class Player {
     this._points += points
   }
 
-  canPlaceBlock () {
-    if (this._numBlocks < 1 || this._ap < 1) return false
+  canPlaceBlock (round) {
+    if (this._numBlocks[round - 1] < 1 || this._ap < 1) return false
     return true
   }
 
-  placeBlock () {
-    this._numBlocks--
+  placeBlock (round) {
+    this._numBlocks[round - 1] -= 1
     this._ap -= 1
   }
 
-  placeBlockUndo () {
-    this._numBlocks++
+  placeBlockUndo (round) {
+    this._numBlocks[round - 1] += 1
     this._ap += 1
   }
 
@@ -92,9 +92,24 @@ class Player {
     this._ap = 0
   }
 
-  endRound (absRound) {
+  endRound (oldRound) {
     this._ap = this._apPerRound
-    this._numBlocks = this._blocksPerRound[absRound]
+    // transfer leftover blocks to next rounds if possibly
+    let i = oldRound
+    while (this._numBlocks[oldRound - 1] > 0 && i < this._numBlocks.length) {
+      while (this._numBlocks[i] < 3) { // up to 3 blocks per tower
+        this._numBlocks[i] += 1
+        this._numBlocks[oldRound - 1] -= 1
+      }
+      i++
+    }
+    this._numBlocks[oldRound - 1] = 0 // discard leftover
+  }
+
+  endPhase (oldPhase) {
+    if (oldPhase < this._blockDistribution.length) {
+      this._numBlocks = [...this._blockDistribution[oldPhase]] // don't mutate blockDistribution!
+    }
   }
 
   ascii (gameRunning, phase) {
