@@ -1,9 +1,10 @@
 import { Board } from './board.js'
 import { Player } from './player.js'
+import { RANDOM, CHOICE, BALANCED, ALL_RANDOM } from './constants.js'
 
 class Torres {
   constructor ({
-    numPlayers = 2, initMode = 'random',
+    numPlayers = 2, initMode = RANDOM,
     boardHeight = 8, boardWidth = 8, numCastles = 8, startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60],
     apPerRound = 5, numKnights = 5, customBlockDistribution = null,
     playerColors = ['red', 'blue', 'green', 'orange', 'violet', 'yellow', 'brown']
@@ -130,7 +131,7 @@ class Torres {
     if (this._phase !== -1) return false
 
     switch (this._initMode) {
-      case 'random':
+      case RANDOM:
         this._board.initCastles()
         this._board.initKnights(this._playerList)
         this._round = 0
@@ -138,7 +139,7 @@ class Torres {
         this._playerToPlaceKing = this._numPlayers - 1
         this._activePlayer = this._playerToPlaceKing
         break
-      case 'choice':
+      case CHOICE:
         this._board.initCastles() // TODO: let players choose castle placements ?
         this._placedInitKnights = new Array(this._numPlayers).fill(false) // TODO: find more elegant solution
         // set attributes to initiation round
@@ -147,7 +148,7 @@ class Torres {
         this._activePlayer = 0
         this._playerToPlaceKing = -1
         break
-      case 'balanced': // TODO: extend for variable board size
+      case BALANCED: // TODO: extend for variable board size
         this._board.initCastles()
         this._board.initKnights(this._playerList, true)
         this._round = 0
@@ -155,7 +156,7 @@ class Torres {
         this._playerToPlaceKing = this._numPlayers - 1
         this._activePlayer = this._playerToPlaceKing
         break
-      case 'allRandom':
+      case ALL_RANDOM:
         this._board.initCastles()
         this._board.initKnights(this._playerList)
         this._round = 0

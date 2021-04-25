@@ -1,7 +1,7 @@
 import { performance } from 'perf_hooks'
 
 import { AiClient } from './ai_client.js'
-import { TIME_LIMIT, MINIMAX, NEGAMAX } from './constants.js'
+import { TIME_LIMIT, MINIMAX, NEGAMAX, EXACT, UPPERBOUND, LOWERBOUND } from './constants.js'
 
 class MinimaxClient extends AiClient {
   constructor ({ version = MINIMAX, depth = 1 }) {
@@ -104,12 +104,12 @@ class MinimaxClient extends AiClient {
     let ttEntry = this.tt.get(gameState)
     if (ttEntry && ttEntry.depth >= depth) {
       this.lookups++
-      if (ttEntry.flag === 'EXACT') {
+      if (ttEntry.flag === EXACT) {
         this.cutoffs++
         return { move: null, value: ttEntry.value }
-      } else if (ttEntry.flag === 'LOWERBOUND') {
+      } else if (ttEntry.flag === LOWERBOUND) {
         alpha = Math.max(alpha, ttEntry.value)
-      } else if (ttEntry.flag === 'UPPERBOUND') {
+      } else if (ttEntry.flag === UPPERBOUND) {
         beta = Math.min(beta, ttEntry.beta)
       }
       if (alpha >= beta) {
@@ -158,11 +158,11 @@ class MinimaxClient extends AiClient {
     ttEntry = {}
     ttEntry.value = value
     if (value <= a) {
-      ttEntry.flag = 'UPPERBOUND'
+      ttEntry.flag = UPPERBOUND
     } else if (value >= beta) {
-      ttEntry.flag = 'LOWERBOUND'
+      ttEntry.flag = LOWERBOUND
     } else {
-      ttEntry.flag = 'EXACT'
+      ttEntry.flag = EXACT
     }
     ttEntry.depth = depth
     this.tt.store(gameState, ttEntry)

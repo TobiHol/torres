@@ -2,7 +2,8 @@ import express from 'express'
 import logger from 'morgan'
 import WebSocket from 'ws'
 
-import { Torres } from '../game-logic/index.js'
+// eslint-disable-next-line no-unused-vars
+import { Torres, RANDOM, CHOICE, BALANCED, ALL_RANDOM } from '../game-logic/index.js'
 
 const app = express()
 const wss = new WebSocket.Server({ noServer: true })
@@ -18,7 +19,7 @@ app.use(logger('dev'))
 const numPlayers = 4
 const torres = new Torres({
   numPlayers: numPlayers,
-  initMode: 'choice'
+  initMode: CHOICE
 })
 
 /*
