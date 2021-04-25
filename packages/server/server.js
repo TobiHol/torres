@@ -2,7 +2,7 @@ import express from 'express'
 import logger from 'morgan'
 import WebSocket from 'ws'
 
-import Torres from './packages/game-logic/src/torres.js'
+import { Torres } from '../game-logic/index.js'
 
 const app = express()
 const wss = new WebSocket.Server({ noServer: true })
