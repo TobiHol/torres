@@ -33,6 +33,7 @@ class Game extends React.Component {
   constructor(props) {
     super(props)
     this.stateHistory = []
+    this.playerStats = []
     this.state = {
       stateIndex: -1, // the current state
       restartAutomatically: false,
@@ -108,12 +109,37 @@ class Game extends React.Component {
       console.log('game started')
       _this.setState({stateIndex: -1})
       _this.stateHistory = []
+      // initialize score table
+      if (!_this.playerStats.length) {
+        const numPlayers = _this.state.torres._numPlayers
+        _this.playerStats = new Array(numPlayers)
+        for (let i = 0; i < _this.playerStats.length; i++) {
+          _this.playerStats[i] = new Array(numPlayers).fill(0)
+        }
+      }
       update()
     })
 
     messageParser.on('game_end', (data) => {
       console.log('game ended')
       update()
+      // initialize score table
+      if (!_this.playerStats.length) {
+        const numPlayers = _this.state.torres._numPlayers
+        _this.playerStats = new Array(numPlayers)
+        for (let i = 0; i < _this.playerStats.length; i++) {
+          _this.playerStats[i] = new Array(numPlayers).fill(0)
+        }
+      }
+      // update score table
+      let scoreList = [..._this.state.torres._playerList]
+      scoreList = scoreList.sort((a, b) => b._points - a._points).reduce((all, player) => all.concat(player._id), [])
+      for (let i = 0; i < _this.playerStats.length; i++) {
+        _this.playerStats[i][scoreList.indexOf(i)]++
+        console.log(_this.playerStats[i])
+        console.log(scoreList.indexOf(i))
+        console.log(scoreList)
+      }
       if (_this.state.restartAutomatically){
         setTimeout(() => {
           this.send('command', ['game_reset', 'game_init'])
@@ -288,20 +314,6 @@ class Game extends React.Component {
 
   renderPlayerTable(){
     let torres = this.state.torres
-    let header = (
-      <tr>
-        <th>Turn</th>
-        <th>Player</th>
-        <th>ID</th>
-        <th>Status</th>
-        <th>Type</th>
-        <th>AP</th>
-        <th>Blocks</th>
-        <th>Knights</th>
-        <th>Points</th>
-      </tr>
-    )
-    let data = []
     
     const startId = torres._startingPlayer
     const numPlayers = torres._numPlayers
@@ -311,6 +323,21 @@ class Game extends React.Component {
     } else {
       playerList.sort((a, b) => b._points - a._points)
     }
+    let header = (
+      <tr>
+        <th>Turn</th>
+        <th>Player</th>
+        <th>ID</th>
+        <th>Status</th>
+        <th>Type</th>
+        <th>Stats</th>
+        <th>AP</th>
+        <th>Blocks</th>
+        <th>Knights</th>
+        <th>Points</th>
+      </tr>
+    )
+    let data = []
     playerList.forEach(player => {
       const {_id, _color, _numKnights, _ap, _numBlocks, _points} = player
       data.push(
@@ -320,6 +347,7 @@ class Game extends React.Component {
           <td>{_id}</td>
           <td>{this.state.playerInfo.player_status[_id]}</td>
           <td>{this.state.playerInfo.player_type[_id]}</td>
+          <td>{JSON.stringify(this.playerStats[_id])}</td>
           <td>{_ap}</td>
           <td>{_numBlocks}</td>
           <td>{_numKnights}</td>
