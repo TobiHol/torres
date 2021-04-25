@@ -17,6 +17,11 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
+  "author": "Tobias Holtdirk",
+  "contributors": [
+    "Hanna Holtdirk",
+    "Tobias Holtdirk"
+  ],
   "eslintConfig": {
     "extends": [
       "react-app",

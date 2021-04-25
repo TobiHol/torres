@@ -4,9 +4,18 @@
   "private": true,
   "type": "module",
   "description": "",
+  "main": "index.js",
   "scripts": {
+    "start": "node clients.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC"
+  "author": "Hanna Holtdirk",
+  "contributors": [
+    "Hanna Holtdirk",
+    "Tobias Holtdirk"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^7.4.5"
+  }
 }

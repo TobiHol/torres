@@ -1,9 +1,7 @@
 {
   "name": "torres",
   "version": "0.0.0",
-  "type": "module",
   "description": "",
-  "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,17 +10,15 @@
     "url": "git+https://github.com/TobiHol/torres.git"
   },
   "author": "Tobias Holtdirk",
+  "contributors": [
+    "Hanna Holtdirk",
+    "Tobias Holtdirk"
+  ],
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/TobiHol/torres/issues"
   },
   "homepage": "https://github.com/TobiHol/torres#readme",
-  "dependencies": {
-    "express": "^4.17.1",
-    "morgan": "^1.10.0",
-    "tinyqueue": "^2.0.3",
-    "ws": "^7.4.4"
-  },
   "devDependencies": {
     "eslint": "^7.23.0",
     "eslint-config-standard": "^16.0.2",
