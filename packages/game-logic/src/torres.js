@@ -2,10 +2,12 @@ import { Board } from './board.js'
 import { Player } from './player.js'
 
 class Torres {
-  constructor (numPlayers = 2, initMode = 'random',
+  constructor ({
+    numPlayers = 2, initMode = 'random',
     boardHeight = 8, boardWidth = 8, numCastles = 8, startingBlocks = [3, 18, 21, 31, 32, 42, 45, 60],
     numRoundsPerPhase = [4, 4, 4], blocksPerRound = new Array(4 * 3).fill(3), apPerRound = 5, numKnights = 5,
-    playerColors = ['red', 'blue', 'green', 'orange', 'violet', 'yellow', 'brown']) {
+    playerColors = ['red', 'blue', 'green', 'orange', 'violet', 'yellow', 'brown']
+  }) {
     if (blocksPerRound.length !== numRoundsPerPhase.reduce((a, b) => a + b, 0) || startingBlocks.length !== numCastles) {
       console.error("parameters don't match")
     }
