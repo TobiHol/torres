@@ -1,120 +1,112 @@
-import WebSocket from 'ws'
-import { EventEmitter } from 'events'
 import { performance } from 'perf_hooks'
-import Torres from '../../game-logic/src/torres.js'
 
-const ws = new WebSocket('ws://localhost:3000/')
-const messageParser = new EventEmitter()
+import { AiClient } from './ai_client.js'
+import { TIME_LIMIT } from './constants.js'
 
-const myInfo = {
-  type: 'minimax_ai',
-  playerInfo: null,
-  torres: null
-}
-
-let tt = {}
-let ttLength = 0
-let lookup = 0
-let cutoffs = 0
-
-function myMove () {
-  const torres = myInfo.torres
-  const t0 = performance.now()
-  tt = {}
-  ttLength = 0
-  lookup = 0
-  cutoffs = 0
-  let bestMove
-  if (torres.numPlayers === 2) {
-    bestMove = negamax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, torres.activePlayer, 1000, t0)
-  } else {
-    bestMove = minimax(torres, torres.activePlayer, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, 1000, t0)
+class MinimaxClient extends AiClient {
+  constructor ({ version = 'MINIMAX', depth = 1 }) {
+    super()
+    this.VERSION = version
+    this.DEPTH = depth
+    this.myInfo.type = 'minimax_ai'
+    this.tt = new TranspositionTable(100000)
+    this.cutoffs = 0
   }
-  console.log('cutoffs: ' + cutoffs)
-  console.log('lookups: ' + lookup)
 
-  if (bestMove.move) {
-    send('move', bestMove.move)
-  } else {
-    send('move', { action: 'turn_end' })
-  }
-}
-
-function minimax (torres, playerId, depth, alpha, beta, timeLimit = null, t0 = null) {
-  if (depth === 0 || !torres.gameRunning) { // should always be at end of turn
-    const moveValue = {
-      move: null,
-      value: torres.getRewardPerPlayer(!torres.isAtEndOfPhase() && torres.gameRunning)[playerId]
+  myMove () {
+    this.t0 = performance.now()
+    this.tt.clear()
+    this.cutoffs = 0
+    let bestMove
+    if (this.VERSION === 'MINIMAX') {
+      bestMove = this.minimax(this.myInfo.torres, this.myInfo.torres.activePlayer,
+        this.DEPTH, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)
+    } else {
+      bestMove = this.negamax(this.myInfo.torres, this.myInfo.torres.activePlayer,
+        this.DEPTH, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, this.myInfo.torres.activePlayer)
     }
-    return moveValue
-  }
-  const moves = torres.getLegalMovesOrdered(torres.activePlayer)
-  let bestMove
-  let value
-  if (torres.activePlayer === playerId) { // maximizing player
-    let value = Number.NEGATIVE_INFINITY
-    for (const move of moves) {
-      let info = {}
-      if (move.action === 'turn_end') info = torres.getInfo()
-      torres.executeMove(move)
-      // only reduce depth if move is turn_end
-      const childMove = minimax(torres, playerId, move.action === 'turn_end' ? depth - 1 : depth, alpha, beta, timeLimit, t0)
-      torres.undoMove(move, info)
-      if (childMove.value > value) {
-        value = childMove.value
-        bestMove = { move, value: childMove.value }
-      }
-      alpha = Math.max(alpha, childMove.value)
-      if (alpha >= beta) { // beta cutoff
-        cutoffs++
-        break
-      }
-      if (timeLimit && performance.now() - t0 > timeLimit) {
-        break
-      }
-    }
-  } else { // minimizing player
-    value = Number.POSITIVE_INFINITY
-    for (const move of moves) {
-      let info = {}
-      if (move.action === 'turn_end') info = torres.getInfo()
-      torres.executeMove(move)
-      // only reduce depth if move is turn_end
-      const childMove = minimax(torres, playerId, move.action === 'turn_end' ? depth - 1 : depth, alpha, beta, timeLimit, t0)
-      torres.undoMove(move, info)
-      if (childMove.value < value) {
-        value = childMove.value
-        bestMove = { move, value: childMove.value }
-      }
-      beta = Math.min(beta, childMove.value)
-      if (beta <= alpha) { // alpha cutoff
-        break
-      }
-      if (timeLimit && performance.now() - t0 > timeLimit) {
-        break
-      }
+    console.log('cutoffs: ' + this.cutoffs)
+    console.log('lookups: ' + this.lookups)
+
+    if (bestMove.move) {
+      this.send('move', bestMove.move)
+    } else {
+      throw new Error('no move was found')
     }
   }
-  return bestMove
-}
 
-function negamax (torres, playerId, depth, alpha, beta, prevPlayer, timeLimit, t0) {
-  if (depth === 0 || !torres.gameRunning) {
-    const moveValue = {
-      move: null,
-      value: -(torres.getRewardPerPlayer(!torres.isAtEndOfPhase() && torres.gameRunning)[prevPlayer]) // TODO: prevPlayer doesn't work with king
+  minimax (torres, playerId, depth, alpha, beta) {
+    if (depth === 0 || !torres.gameRunning) { // should always be at end of turn
+      const moveValue = {
+        move: null,
+        value: torres.getRewardPerPlayer(!torres.isAtEndOfPhase() && torres.gameRunning)[playerId]
+      }
+      return moveValue
     }
-    return moveValue
+    const moves = torres.getLegalMovesOrdered(torres.activePlayer)
+    let bestMove
+    let value
+    if (torres.activePlayer === playerId) { // maximizing player
+      let value = Number.NEGATIVE_INFINITY
+      for (const move of moves) {
+        let info = {}
+        if (move.action === 'turn_end') info = torres.getInfo()
+        torres.executeMove(move)
+        // only reduce depth if move is turn_end
+        const childMove = this.minimax(torres, playerId, move.action === 'turn_end' ? depth - 1 : depth, alpha, beta)
+        torres.undoMove(move, info)
+        if (childMove.value > value) {
+          value = childMove.value
+          bestMove = { move, value: childMove.value }
+        }
+        alpha = Math.max(alpha, childMove.value)
+        if (alpha >= beta) { // beta cutoff
+          this.cutoffs++
+          break
+        }
+        if (performance.now() - this.t0 > TIME_LIMIT) {
+          break
+        }
+      }
+    } else { // minimizing player
+      value = Number.POSITIVE_INFINITY
+      for (const move of moves) {
+        let info = {}
+        if (move.action === 'turn_end') info = torres.getInfo()
+        torres.executeMove(move)
+        // only reduce depth if move is turn_end
+        const childMove = this.minimax(torres, playerId, move.action === 'turn_end' ? depth - 1 : depth, alpha, beta)
+        torres.undoMove(move, info)
+        if (childMove.value < value) {
+          value = childMove.value
+          bestMove = { move, value: childMove.value }
+        }
+        beta = Math.min(beta, childMove.value)
+        if (beta <= alpha) { // alpha cutoff
+          break
+        }
+        if (performance.now() - this.t0 > TIME_LIMIT) {
+          break
+        }
+      }
+    }
+    return bestMove
   }
-  const a = alpha
-  let gameState
-  if (tt) {
-    gameState = JSON.stringify(torres)
-    const ttEntry = tt[gameState]
+
+  negamax (torres, playerId, depth, alpha, beta, prevPlayer) {
+    if (depth === 0 || !torres.gameRunning) {
+      const moveValue = {
+        move: null,
+        value: -(torres.getRewardPerPlayer(!torres.isAtEndOfPhase() && torres.gameRunning)[prevPlayer]) // TODO: prevPlayer doesn't work with king
+      }
+      return moveValue
+    }
+    const a = alpha
+    const gameState = JSON.stringify(torres)
+    let ttEntry = this.tt.get(gameState)
     if (ttEntry && ttEntry.depth >= depth) {
-      lookup++
       if (ttEntry.flag === 'EXACT') {
-        cutoffs++
+        this.cutoffs++
         return { move: null, value: ttEntry.value }
       } else if (ttEntry.flag === 'LOWERBOUND') {
         alpha = Math.max(alpha, ttEntry.value)
@@ -125,38 +117,37 @@ function negamax (torres, playerId, depth, alpha, beta, prevPlayer, timeLimit, t
         return { move: null, value: ttEntry.value }
       }
     }
-  }
-  const moves = torres.getLegalMovesOrdered(playerId, true)
-  let bestMove
-  let value = Number.NEGATIVE_INFINITY
-  for (const move of moves) {
-    let info = {}
-    if (move.action === 'turn_end') info = torres.getInfo()
-    torres.executeMove(move)
+    const moves = torres.getLegalMovesOrdered(playerId, true)
+    let bestMove
+    let value = Number.NEGATIVE_INFINITY
+    for (const move of moves) {
+      let info = {}
+      if (move.action === 'turn_end') info = torres.getInfo()
+      torres.executeMove(move)
 
-    // recursive call
-    const childMove = negamax(torres, playerId === 1 ? 0 : 1, move.action === 'turn_end' ? depth - 1 : depth, // only reduce depth if move is turn is ended
-      -beta, -alpha, playerId, timeLimit, t0)
+      // recursive call
+      const childMove = this.negamax(torres, playerId === 1 ? 0 : 1, move.action === 'turn_end' ? depth - 1 : depth, // only reduce depth if move is turn is ended
+        -beta, -alpha, playerId)
+      childMove.value = -childMove.value // - negamax
 
-    childMove.value = -childMove.value // - negamax
-    // get back to original game state
-    torres.undoMove(move, info)
-    if (childMove.value > value) {
-      value = childMove.value
-      bestMove = { move, value: childMove.value }
+      // get back to original game state
+      torres.undoMove(move, info)
+
+      if (childMove.value > value) {
+        value = childMove.value
+        bestMove = { move, value: childMove.value }
+      }
+      alpha = Math.max(alpha, childMove.value)
+      if (alpha >= beta) {
+        this.cutoffs++
+        break
+      }
+      if (performance.now() - this.t0 > this.TIME_LIMIT) {
+        break
+      }
     }
-    alpha = Math.max(alpha, childMove.value)
-    if (alpha >= beta) {
-      cutoffs++
-      break
-    }
-    if (timeLimit && performance.now() - t0 > timeLimit) {
-      break
-    }
-  }
-  // transposition table store
-  if (tt && ttLength < 1000000) {
-    const ttEntry = {}
+    // transposition table store
+    ttEntry = {}
     ttEntry.value = value
     if (value <= a) {
       ttEntry.flag = 'UPPERBOUND'
@@ -166,98 +157,44 @@ function negamax (torres, playerId, depth, alpha, beta, prevPlayer, timeLimit, t
       ttEntry.flag = 'EXACT'
     }
     ttEntry.depth = depth
-    tt[gameState] = ttEntry
-    ttLength++
-  }
-  if (ttLength === 999999) {
-    console.log('full')
-  }
+    this.tt.store(gameState, ttEntry)
 
-  return bestMove
-}
-
-async function update (updatePI = true) {
-  if (updatePI) {
-    myInfo.playerInfo = await new Promise(resolve => {
-      send('status_request', ['player_info'])
-      messageParser.once('player_info_response', (data) => resolve(data))
-    })
-  }
-  const torres = await new Promise(resolve => {
-    send('status_request', ['game_state'])
-    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
-  })
-  myInfo.torres = torres
-  if (torres.activePlayer === myInfo.playerInfo.id && torres.gameRunning) {
-    myMove()
+    return bestMove
   }
 }
 
-function send (type, data) {
-  const message = {
-    type: type,
-    data: data
+class TranspositionTable {
+  constructor (capacity) {
+    this.CAPACITY = capacity
+    this.states = [] // keeps track of age of states
+    this.oldestIdx = 0 // points to oldest state
+    this.entries = {}
+    this.length = 0
   }
-  console.log('send:', message)
-  ws.send(JSON.stringify(message))
+
+  store (state, entry) {
+    if (this.length < this.CAPACITY) {
+      this.entries[state] = entry
+      this.states.push(state)
+      this.length++
+    } else { // replacement
+      delete this.entries[this.states[this.oldestIdx]]
+      this.entries[state] = entry
+      this.states[this.oldestIdx] = state
+      this.oldestIdx = (this.oldestIdx + 1) % this.length
+    }
+  }
+
+  get (state) {
+    return this.entries[state]
+  }
+
+  clear () {
+    this.states = []
+    this.oldestIdx = 0
+    this.entries = {}
+    this.length = 0
+  }
 }
 
-function onError (err) {
-  console.log(err)
-}
-
-messageParser.on('error', (data) => {
-  onError(data.message)
-})
-
-messageParser.on('game_start', (data) => {
-  console.log('game started')
-  update()
-})
-
-messageParser.on('game_end', (data) => {
-  console.log('game ended')
-  update()
-})
-
-messageParser.on('move_update', (data) => {
-  if (data.next_player === myInfo.playerInfo.id) {
-    update(false)
-  }
-})
-
-messageParser.on('move_response', (data) => {
-})
-
-messageParser.on('player_connect', (data) => {
-  update()
-  send('info', {
-    type: myInfo.type
-  })
-})
-
-messageParser.on('player_disconnect', (data) => {
-  update()
-})
-
-ws.on('open', () => {
-  console.log('connected')
-  send('command', ['game_join'])
-})
-
-ws.on('message', (message) => {
-  try {
-    const json = JSON.parse(message)
-    messageParser.emit(json.type, json.data)
-  } catch (err) {
-    onError('Cant parse message.')
-  }
-})
-
-ws.on('error', (err) => {
-  onError(err)
-})
-
-ws.on('close', (code, reason) => {
-  console.log('disconnected', code, reason)
-})
+export { MinimaxClient }

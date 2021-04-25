@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import WebSocket from 'ws'
 import { EventEmitter } from 'events'
-import Torres from '../../game-logic/src/torres.js'
+import { Torres } from '../../game-logic/index.js'
 import { performance } from 'perf_hooks'
 
 const ws = new WebSocket('ws://localhost:3000/')

@@ -1,125 +1,84 @@
-import WebSocket from 'ws'
-import { EventEmitter } from 'events'
 import { performance } from 'perf_hooks'
-import Torres from '../../game-logic/src/torres.js'
 
-const ws = new WebSocket('ws://localhost:3000/')
-const messageParser = new EventEmitter()
+import { AiClient, cloneTorres } from './ai_client.js'
+import { TIME_LIMIT } from './constants.js'
 
-const myInfo = {
-  type: 'mcts',
-  playerInfo: null,
-  torres: null
-}
+class MctsClient extends AiClient {
+  constructor ({ version = 'STANDARD', c = 10, d = 1, epsilon = 0.5 }) {
+    super()
+    this.VERSION = version
+    this.myInfo.type = 'mcts_ai'
 
-function myMove () {
-  const bestMove = mcts(cloneTorres(myInfo.torres))
-  send('move', bestMove)
-}
+    this.C = c
+    this.D = d
+    this.epsilon = epsilon
+  }
 
-function mcts (torres, c = 10, d = 1, epsilon = 0.5, timeLimit = 1000) {
-  const t0 = performance.now()
-  const firstMoves = torres.getLegalMovesBiased(torres.activePlayer)
-  const rootNode = new Node(torres, null, null, null, firstMoves, 0)
-  let currentNode, currentTorres, rewardPerPlayer
-  while (true) {
-    currentNode = treePolicy(rootNode, c, d)
-    if (rootNode.untriedMoves.length === 0 && rootNode.children.length === 1) { // only one possible move
-      break
-    }
-    currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres, false, epsilon)
-    backup(currentNode, rewardPerPlayer)
-    if (performance.now() - t0 > timeLimit) {
-      break
+  myMove () {
+    this.t0 = performance.now()
+    const torres = cloneTorres(this.myInfo.torres)
+    const bestMove = this.mcts(torres)
+    if (bestMove) {
+      this.send('move', bestMove)
+    } else {
+      throw new Error('no move was found')
     }
   }
-  console.log('runs: ' + rootNode.visits)
-  return rootNode.bestChild().move
-}
 
-/*
-function nonexMcts (torres, timeLimit = 1000) {
-  const t0 = performance.now()
-  const firstMoves = torres.getLegalMovesOrdered(torres.activePlayer).reverse()
-  const rootNode = new Node(torres, null, null, firstMoves, 0)
-  let currentNode, currentTorres, rewardPerPlayer
-  while (performance.now() - t0 < timeLimit) {
-    currentNode = treePolicy(rootNode, 0, 1)
-    if (rootNode.untriedMoves.length === 0 && rootNode.children.length === 1) { // only one possible move
-      break
-    }
-    currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres, true) // deterministic
-    backup(currentNode, rewardPerPlayer)
-  }
-  fillBestTurn(rootNode)
-  console.log('runs: ' + rootNode.visits)
-}
-
-function bbMcts (torres, c = 10, d = 1, timeLimit = 1000) {
-  const t0 = performance.now()
-  let t1 = t0
-  const firstMoves = torres.getLegalMovesOrdered(torres.activePlayer).reverse()
-  let rootNode = new Node(torres, null, null, firstMoves, 0)
-  let currentNode, currentTorres, rewardPerPlayer
-  while (performance.now() - t0 < timeLimit) {
-    if (performance.now() - t1 > timeLimit / 4) {
-      t1 = performance.now()
-      // make best child new root, i.e., aggressively prune siblings
-      rootNode = rootNode.bestChild()
-      rootNode.parent = null
-      bestTurn.push(rootNode.move)
-      if (rootNode.move.action === 'turn_end') {
+  mcts (torres) {
+    const firstMoves = torres.getLegalMovesBiased(torres.activePlayer)
+    const rootNode = new Node(torres, null, null, null, firstMoves, 0)
+    let currentNode, currentTorres, rewardPerPlayer
+    while (true) {
+      currentNode = this.treePolicy(rootNode)
+      if (rootNode.untriedMoves.length === 0 && rootNode.children.length === 1) { // only one possible move
         break
       }
-      rootNode.move = null
+      currentTorres = cloneTorres(currentNode.torres)
+      rewardPerPlayer = this.defaultPolicy(currentTorres, false)
+      this.backup(currentNode, rewardPerPlayer)
+      if (performance.now() - this.t0 > TIME_LIMIT) {
+        break
+      }
     }
-    currentNode = treePolicy(rootNode, c, d)
-    currentTorres = cloneTorres(currentNode.torres)
-    rewardPerPlayer = defaultPolicy(currentTorres, false, 0.5) // epsilon-greedy with epsilon = 0.5
-    backup(currentNode, rewardPerPlayer)
+    console.log('runs: ' + rootNode.visits)
+    return rootNode.bestChild().move
   }
-}
-*/
 
-function cloneTorres (torres) {
-  return Torres.assignInstances(JSON.parse(JSON.stringify(torres)))
-}
-
-function treePolicy (rootNode, c, d) {
-  let node = rootNode
-  while (node.torres.gameRunning) { // non-terminal
-    if (node.untriedMoves.length !== 0) { // not fully expanded
-      return node.expand()
-    } else {
-      node = node.selectChild(c, d)
+  treePolicy (rootNode) {
+    let node = rootNode
+    while (node.torres.gameRunning) { // non-terminal
+      if (node.untriedMoves.length !== 0) { // not fully expanded
+        return node.expand()
+      } else {
+        node = node.selectChild(this.C, this.D)
+      }
     }
+    return node
   }
-  return node
-}
 
-function defaultPolicy (torres, deterministic, epsilon) {
-  const startingPhase = torres.phase
-  let move
-  while (torres.gameRunning && startingPhase === torres.phase) {
-    if (deterministic || Math.random() > epsilon) {
-      move = torres.getDeterministicLegalMove() // follow simple greedy heuristic (based on getLegalMovesOrdered)
-    } else {
-      move = torres.getRandomLegalMoveBiased()
+  defaultPolicy (torres, deterministic) {
+    const startingPhase = torres.phase
+    let move
+    while (torres.gameRunning && startingPhase === torres.phase) {
+      if (deterministic || Math.random() > this.epsilon) {
+        move = torres.getDeterministicLegalMove() // follow simple greedy heuristic (based on getLegalMovesOrdered)
+      } else {
+        move = torres.getRandomLegalMoveBiased()
+      }
+      torres.executeMove(move)
     }
-    torres.executeMove(move)
+    return torres.getRewardPerPlayer(true)
   }
-  return torres.getRewardPerPlayer(true)
-}
 
-function backup (node, rewardPP) {
-  while (node) {
-    node.visits++
-    for (let i = 0; i < rewardPP.length; i++) {
-      node.rewardPerPlayer[i] += rewardPP[i]
+  backup (node, rewardPP) {
+    while (node) {
+      node.visits++
+      for (let i = 0; i < rewardPP.length; i++) {
+        node.rewardPerPlayer[i] += rewardPP[i]
+      }
+      node = node.parent
     }
-    node = node.parent
   }
 }
 
@@ -168,89 +127,4 @@ class Node {
   }
 }
 
-async function update (updatePI = true) {
-  if (updatePI) {
-    myInfo.playerInfo = await new Promise(resolve => {
-      send('status_request', ['player_info'])
-      messageParser.once('player_info_response', (data) => resolve(data))
-    })
-  }
-  const torres = await new Promise(resolve => {
-    send('status_request', ['game_state'])
-    messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
-  })
-  myInfo.torres = torres
-  if (torres.activePlayer === myInfo.playerInfo.id && torres.gameRunning) {
-    myMove()
-  }
-}
-
-function send (type, data) {
-  const message = {
-    type: type,
-    data: data
-  }
-  console.log('send:', message)
-  ws.send(JSON.stringify(message))
-}
-
-function onError (err) {
-  console.log(err)
-}
-
-messageParser.on('error', (data) => {
-  onError(data.message)
-})
-
-messageParser.on('game_start', (data) => {
-  console.log('game started')
-  // bestTurn = []
-  update()
-})
-
-messageParser.on('game_end', (data) => {
-  console.log('game ended')
-  update()
-})
-
-messageParser.on('move_update', (data) => {
-  if (data.next_player === myInfo.playerInfo.id) {
-    update(false)
-  }
-})
-
-messageParser.on('move_response', (data) => {
-})
-
-messageParser.on('player_connect', (data) => {
-  update()
-  send('info', {
-    type: myInfo.type
-  })
-})
-
-messageParser.on('player_disconnect', (data) => {
-  update()
-})
-
-ws.on('open', () => {
-  console.log('connected')
-  send('command', ['game_join'])
-})
-
-ws.on('message', (message) => {
-  try {
-    const json = JSON.parse(message)
-    messageParser.emit(json.type, json.data)
-  } catch (err) {
-    onError('Cant parse message.')
-  }
-})
-
-ws.on('error', (err) => {
-  onError(err)
-})
-
-ws.on('close', (code, reason) => {
-  console.log('disconnected', code, reason)
-})
+export { MctsClient }
