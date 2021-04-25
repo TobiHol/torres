@@ -1,5 +1,5 @@
-import Board from './board.js'
-import Player from './player.js'
+import { Board } from './board.js'
+import { Player } from './player.js'
 
 class Torres {
   constructor (numPlayers = 2, initMode = 'random',
@@ -775,4 +775,4 @@ class Torres {
   }
 }
 
-export default Torres
+export { Torres }

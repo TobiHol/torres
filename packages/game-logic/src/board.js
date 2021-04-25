@@ -326,4 +326,4 @@ class Board {
   }
 }
 
-export default Board
+export { Board }
