@@ -129,6 +129,14 @@ class Torres {
         this._playerToPlaceKing = this._numPlayers - 1
         this._activePlayer = this._playerToPlaceKing
         break
+      case 'allRandom':
+        this._board.initCastles()
+        this._board.initKnights(this._playerList)
+        this._round = 0
+        this._phase = 1
+        this._playerToPlaceKing = Math.floor(Math.random() * this._numPlayers)
+        this._activePlayer = this._playerToPlaceKing
+        break
       default:
         return false
     }
