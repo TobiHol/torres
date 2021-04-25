@@ -19,11 +19,23 @@ function Button(props) {
   );
 }
 
+function Checkbox(props) {
+  return (
+    <div>
+      <input type="checkbox" id={props.id} onChange={props.onChange} checked={props.checked}/>
+      <label for={props.id}> {props.text} </label>
+    </div>
+    )
+}
+
 class Game extends React.Component {
 
   constructor(props) {
     super(props)
+    this.stateHistory = []
     this.state = {
+      stateIndex: -1, // the current state
+      restartAutomatically: false,
       playerInfo: null,
       torres: null,
       legalMoves: [],
@@ -58,11 +70,21 @@ class Game extends React.Component {
         _this.send('status_request', ['legal_moves'])
         messageParser.once('legal_moves_response', (data) => resolve(data))
       })
-      _this.setState({
-        playerInfo: playerInfo,
-        torres: torresNoInstance,
-        legalMoves: legalMoves,
-      })
+      // _this.setState({
+      //   playerInfo: playerInfo,
+      //   torres: torresNoInstance,
+      //   legalMoves: legalMoves,
+      // })
+      if (_this.state.playerInfo !== playerInfo) {
+        _this.setState({playerInfo: playerInfo})
+      }
+      if (_this.state.torres !== torresNoInstance) {
+        _this.stateHistory.push(JSON.parse(JSON.stringify(torresNoInstance)))
+        _this.setState({torres: torresNoInstance})
+      }
+      if (_this.state.legalMoves !== legalMoves) {
+        _this.setState({legalMoves: legalMoves})
+      }
     }
 
     this.send = function(type, data) {
@@ -84,15 +106,17 @@ class Game extends React.Component {
 
     messageParser.on('game_start', (data) => {
       console.log('game started')
-      _this.setState({
-        id: data.your_player_id
-      })
+      _this.setState({stateIndex: -1})
+      _this.stateHistory = []
       update()
     })
 
     messageParser.on('game_end', (data) => {
       console.log('game ended')
       update()
+      if (_this.state.restartAutomatically){
+        this.send('command', ['game_reset', 'game_init'])
+      }
     })
 
     messageParser.on('move_update', (data) => {
@@ -136,8 +160,8 @@ class Game extends React.Component {
     }
   }
   
-  handleClick(i) {
-    let board = this.state.torres._board
+  handleClick(i, torres) {
+    let board = torres._board
     let x = i % board._width
     let y = Math.floor(i / board._width)
     let myMove = this.state.move
@@ -162,9 +186,9 @@ class Game extends React.Component {
     }
   }
 
-  renderSquare(i) {
+  renderSquare(i, torres) {
     let move = this.state.move
-    let board = this.state.torres._board
+    let board = torres._board
 
     let height = board._squares[i].height
     let knight = board._squares[i].knight
@@ -174,7 +198,7 @@ class Game extends React.Component {
     } else if (knight === 'king') {
       numCol = 'white'
     } else {
-      numCol = this.state.torres._playerColors[knight]
+      numCol = torres._playerColors[knight]
     }
     let borderColor = 'black'
     let borderWidth = '1px'
@@ -191,20 +215,26 @@ class Game extends React.Component {
     return (
       <Square
         value={JSON.stringify(height)}
-        onClick={() => this.handleClick(i)}
+        onClick={() => this.handleClick(i, torres)}
         style={style}
       />
     );
   }
 
   renderAllSquares(){
+    let torres = null
+    if (this.state.stateIndex === -1) {
+      torres = this.state.torres
+    } else {
+      torres = this.stateHistory[this.state.stateIndex]
+    }
     let res = []
-    let board = this.state.torres._board
+    let board = torres._board
     for (let i = 0; i < board._squares.length; i++) {
       if (i % board._width === 0) {
         res.push(<div />)
       }
-      res.push(this.renderSquare(i))
+      res.push(this.renderSquare(i, torres))
     }
     return res
   }
@@ -383,7 +413,61 @@ class Game extends React.Component {
           />
       )
     }
+    options.push(
+      <Checkbox
+        id='restart_automatically'
+        text='restart automatically'
+        onChange={() => {
+          this.checkBox('restart_automatically')
+        }}
+        checked={this.state.restartAutomatically}
+        />
+    )
+    options.push(
+      <div>
+        <Button
+          value='<'
+          onClick={() => {
+            let stateIndex = this.state.stateIndex
+            if (stateIndex <= -1) {
+              stateIndex = this.stateHistory.length - 1
+            } else if (stateIndex >= 1) {
+              stateIndex--
+            }
+            this.setState({
+              stateIndex: stateIndex
+            })
+          }}
+        />
+        <Button 
+          value='>'
+          onClick={()=> {
+            let stateIndex = this.state.stateIndex
+            if (stateIndex >= this.stateHistory.length - 1) {
+              stateIndex = -1
+            } else if (stateIndex >= 0) {
+              stateIndex++
+            }
+            this.setState({
+              stateIndex: stateIndex
+            })
+          }}
+        />
+      </div>
+    )
     return options
+  }
+
+  checkBox(id){
+    const checkbox = document.getElementById(id)
+    this.setState({
+      restartAutomatically: checkbox.checked
+    })
+  }
+
+  test(thing){
+    if (thing) return 'true'
+    return 'false'
   }
 
   render() {
@@ -395,6 +479,8 @@ class Game extends React.Component {
     }
     return (
       <div className='game'>
+        {this.state.stateIndex}
+        {this.stateHistory.length}
         <div className='game-options'>
           {this.renderGameOptions()}
         </div>
@@ -405,7 +491,7 @@ class Game extends React.Component {
         </div>
         <br/>
         <div className='game-board'>
-          {this.renderAllSquares()}
+          {this.renderAllSquares(this.state.torres)}
         </div>
         <div className='game-action'>
           {this.renderLegalMoves()}

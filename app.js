@@ -20,7 +20,9 @@ app.use(logger('dev'))
 
 const numPlayers = 4
 const Torres = require('./public/javascripts/torres')
-const torres = new Torres(numPlayers, 'choice')
+const torres = new Torres({
+  numPlayers: numPlayers
+})
 
 // for testing
 const { performance } = require('perf_hooks')
@@ -73,7 +75,6 @@ app.post('/api', function (req, res) {
  * Websocket API
  */
 
-let GAME_ON = false
 const PLAYERS = new Array(numPlayers).fill(null)
 const PLAYER_TYPES = new Array(numPlayers).fill(null)
 function getPlayerId (obj) {
@@ -90,6 +91,7 @@ function broadcast (message) {
   wss.clients.forEach(function each (client) {
     // if (client.readyState === WebSocket.OPEN) {
     client.send(message)
+    console.log(`broadcast: ${message}`)
   })
 }
 
@@ -136,7 +138,7 @@ wss.on('connection', (ws) => {
     }))
   })
   function onMove (data) {
-    if (!GAME_ON) {
+    if (!torres.gameRunning) {
       ws.send(JSON.stringify({
         type: 'error',
         data: {
@@ -184,6 +186,14 @@ wss.on('connection', (ws) => {
         }
       }))
     }
+    if (!torres.gameRunning) {
+      broadcast(JSON.stringify({
+        type: 'game_end',
+        data: {
+          winner: null
+        }
+      }))
+    }
   }
   function onRequest (data) {
     const requests = data
@@ -225,27 +235,13 @@ wss.on('connection', (ws) => {
     for (const command of commands) {
       switch (command) {
         case 'game_reset':
-          if (GAME_ON) {
-            GAME_ON = false
-            broadcast(JSON.stringify({
-              type: 'game_end',
-              data: {
-                winner: null
-              }
-            }))
-          }
           torres.resetGame()
           break
         case 'game_init':
-          if (GAME_ON) break
-          start = performance.now()
           torres.initGame()
-          GAME_ON = true
-          wss.clients.forEach(function each (client) {
-            client.send(JSON.stringify({
-              type: 'game_start'
-            }))
-          })
+          broadcast(JSON.stringify({
+            type: 'game_start'
+          }))
           break
         case 'game_join':
           // if all spots are taken
