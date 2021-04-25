@@ -3,6 +3,20 @@ import React from 'react'
 const host = window.location.hostname
 const client = new WebSocket(`ws://${host}:3000/`)
 
+// dark blocks
+const darkColors = {
+  square: 'white',
+  squareWithBlock: '#393939',
+  players: ['#f8766d', '#7cae00', '#00bfc4', '#c77cff', 'violet', 'yellow', 'brown']
+}
+// light blocks
+const lightColors = {
+  square: 'white',
+  squareWithBlock: '#aaaaaa',
+  players: ['red', 'green', 'blue', 'orange', 'violet', 'yellow', 'brown']
+}
+let colors = lightColors
+
 function Square(props) {
   return (
     <button className='square' onClick={props.onClick} style={props.style}>
@@ -226,7 +240,7 @@ class Game extends React.Component {
     } else if (knight === 'king') {
       numCol = 'white'
     } else {
-      numCol = torres._playerColors[knight]
+      numCol = colors.players[knight]
     }
     let borderColor = 'black'
     let borderWidth = '1px'
@@ -236,7 +250,7 @@ class Game extends React.Component {
     }
     let style = {
       'color': numCol,
-      'backgroundColor': height > 0 ? 'grey' : 'white',
+      'backgroundColor': height > 0 ? colors.squareWithBlock : colors.square,
       'borderColor': borderColor,
       'borderWidth': borderWidth
     }
@@ -343,7 +357,7 @@ class Game extends React.Component {
       data.push(
         <tr key={_id}>
           <td>{torres._gameRunning && torres._activePlayer === _id ? '>' : ''}</td>
-          <td><span style={{color:_color}}>▲</span></td>
+          <td><span style={{color:colors.players[_id]}}>▲</span></td>
           <td>{_id}</td>
           <td>{this.state.playerInfo.player_status[_id]}</td>
           <td>{this.state.playerInfo.player_type[_id]}</td>
@@ -380,7 +394,7 @@ class Game extends React.Component {
     }else{
       gameInfo.push(
         <div>
-          You are the {torres._playerColors[this.state.playerInfo.id]} player <span style={{color:torres._playerColors[this.state.playerInfo.id]}}>▲</span>
+          You are the {colors.players[this.state.playerInfo.id]} player <span style={{color:colors.players[this.state.playerInfo.id]}}>▲</span>
         </div>
       )
     }
