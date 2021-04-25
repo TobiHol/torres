@@ -22,8 +22,8 @@ table, th, td {
   border-style: solid;
 }
 
-.player-table th:nth-child(6), 
-.player-table td:nth-child(6),
+.player-table th:nth-child(7), 
+.player-table td:nth-child(7),
 .player-table th:last-child, 
 .player-table td:last-child {
   border-left-width: 2px;
@@ -37,6 +37,11 @@ table, th, td {
 .player-table td {
   padding-left: 10px;
   padding-right: 10px;
+}
+
+td.list {
+  border-width: 1px;
+  border-style: none;
 }
 
 .square {

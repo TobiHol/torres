@@ -3,7 +3,7 @@ import React from 'react'
 const host = window.location.hostname
 const client = new WebSocket(`ws://${host}:3000/`)
 
-function Square(props) {
+function Square (props) {
   return (
     <button className='square' onClick={props.onClick} style={props.style}>
       {props.value}
@@ -11,7 +11,7 @@ function Square(props) {
   )
 }
 
-function Button(props) {
+function Button (props) {
   return (
     <button onClick={props.onClick}>
       {props.value}
@@ -19,18 +19,17 @@ function Button(props) {
   )
 }
 
-function Checkbox(props) {
+function Checkbox (props) {
   return (
     <div>
       <input type="checkbox" id={props.id} onChange={props.onChange} checked={props.checked}/>
       <label for={props.id}> {props.text} </label>
     </div>
-    )
+  )
 }
 
 class Game extends React.Component {
-
-  constructor(props) {
+  constructor (props) {
     super(props)
     this.stateHistory = []
     this.playerStats = []
@@ -46,11 +45,11 @@ class Game extends React.Component {
         y: null,
         destX: null,
         destY: null
-      },
+      }
     }
   }
 
-  componentDidMount() {
+  componentDidMount () {
     const events = require('events')
 
     const ws = client
@@ -77,18 +76,18 @@ class Game extends React.Component {
       //   legalMoves: legalMoves,
       // })
       if (_this.state.playerInfo !== playerInfo) {
-        _this.setState({playerInfo: playerInfo})
+        _this.setState({ playerInfo: playerInfo })
       }
       if (_this.state.torres !== torresNoInstance) {
         _this.stateHistory.push(JSON.parse(JSON.stringify(torresNoInstance)))
-        _this.setState({torres: torresNoInstance})
+        _this.setState({ torres: torresNoInstance })
       }
       if (_this.state.legalMoves !== legalMoves) {
-        _this.setState({legalMoves: legalMoves})
+        _this.setState({ legalMoves: legalMoves })
       }
     }
 
-    this.send = function(type, data) {
+    this.send = function (type, data) {
       const message = {
         type: type,
         data: data
@@ -107,7 +106,7 @@ class Game extends React.Component {
 
     messageParser.on('game_start', (data) => {
       console.log('game started')
-      _this.setState({stateIndex: -1})
+      _this.setState({ stateIndex: -1 })
       _this.stateHistory = []
       // initialize score table
       if (!_this.playerStats.length) {
@@ -140,7 +139,7 @@ class Game extends React.Component {
         console.log(scoreList.indexOf(i))
         console.log(scoreList)
       }
-      if (_this.state.restartAutomatically){
+      if (_this.state.restartAutomatically) {
         setTimeout(() => {
           this.send('command', ['game_reset', 'game_init'])
         }, 5000)
@@ -187,12 +186,12 @@ class Game extends React.Component {
       console.log('disconnected', code, reason)
     }
   }
-  
-  handleClick(i, torres) {
-    let board = torres._board
-    let x = i % board._width
-    let y = Math.floor(i / board._width)
-    let myMove = this.state.move
+
+  handleClick (i, torres) {
+    const board = torres._board
+    const x = i % board._width
+    const y = Math.floor(i / board._width)
+    const myMove = this.state.move
     if (board._squares[myMove.x + myMove.y * board._width].knight !== this.state.playerInfo.id || myMove.destX !== null) {
       this.setState({
         move: {
@@ -200,7 +199,7 @@ class Game extends React.Component {
           x: x,
           y: y,
           destX: null,
-          destY: null,
+          destY: null
         }
       })
     } else {
@@ -208,18 +207,18 @@ class Game extends React.Component {
         move: {
           ...this.state.move,
           destX: x,
-          destY: y,
+          destY: y
         }
       })
     }
   }
 
-  renderSquare(i, torres) {
-    let move = this.state.move
-    let board = torres._board
+  renderSquare (i, torres) {
+    const move = this.state.move
+    const board = torres._board
 
-    let height = board._squares[i].height
-    let knight = board._squares[i].knight
+    const height = board._squares[i].height
+    const knight = board._squares[i].knight
     let numCol
     if (knight === -1) {
       numCol = 'black'
@@ -234,11 +233,11 @@ class Game extends React.Component {
       borderColor = 'red'
       borderWidth = '2px'
     }
-    let style = {
-      'color': numCol,
-      'backgroundColor': height > 0 ? 'grey' : 'white',
-      'borderColor': borderColor,
-      'borderWidth': borderWidth
+    const style = {
+      color: numCol,
+      backgroundColor: height > 0 ? 'grey' : 'white',
+      borderColor: borderColor,
+      borderWidth: borderWidth
     }
     return (
       <Square
@@ -249,15 +248,15 @@ class Game extends React.Component {
     )
   }
 
-  renderAllSquares(){
+  renderAllSquares () {
     let torres = null
     if (this.state.stateIndex === -1) {
       torres = this.state.torres
     } else {
       torres = this.stateHistory[this.state.stateIndex]
     }
-    let res = []
-    let board = torres._board
+    const res = []
+    const board = torres._board
     for (let i = 0; i < board._squares.length; i++) {
       if (i % board._width === 0) {
         res.push(<div />)
@@ -274,18 +273,18 @@ class Game extends React.Component {
     return action[1] + ' ' + action[0] + start + dest
   }
 
-  renderLegalMoves(){
+  renderLegalMoves () {
     if (!this.state.torres._gameRunning) {
       return 'game is not running'
     }
     if (this.state.torres._activePlayer !== this.state.playerInfo.id) {
       return 'not your turn'
     }
-    let myMove = this.state.move
-    let legalMoves = this.state.legalMoves
-    let renderedMoves = []
+    const myMove = this.state.move
+    const legalMoves = this.state.legalMoves
+    const renderedMoves = []
     legalMoves.forEach(move => {
-      if ((move.action !== 'turn_end' && move.action !== null) && (myMove.x !== move.x || myMove.y !== move.y)){
+      if ((move.action !== 'turn_end' && move.action !== null) && (myMove.x !== move.x || myMove.y !== move.y)) {
 
       } else if (move.action === 'knight_move' && (myMove.destX !== move.destX || myMove.destY !== move.destY) && (myMove.destX !== null)) {
 
@@ -306,15 +305,15 @@ class Game extends React.Component {
               })
             }}
            />
-          )
+        )
       }
     })
     return renderedMoves
   }
 
-  renderPlayerTable(){
-    let torres = this.state.torres
-    
+  renderPlayerTable () {
+    const torres = this.state.torres
+
     const startId = torres._startingPlayer
     const numPlayers = torres._numPlayers
     const playerList = [...(torres._playerList)]
@@ -323,7 +322,7 @@ class Game extends React.Component {
     } else {
       playerList.sort((a, b) => b._points - a._points)
     }
-    let header = (
+    const header = (
       <tr>
         <th>Turn</th>
         <th>Player</th>
@@ -337,19 +336,19 @@ class Game extends React.Component {
         <th>Points</th>
       </tr>
     )
-    let data = []
+    const data = []
     playerList.forEach(player => {
-      const {_id, _color, _numKnights, _ap, _numBlocks, _points} = player
+      const { _id, _color, _numKnights, _ap, _numBlocks, _points } = player
       data.push(
         <tr key={_id}>
           <td>{torres._gameRunning && torres._activePlayer === _id ? '>' : ''}</td>
-          <td><span style={{color:_color}}>▲</span></td>
+          <td><span style={{ color: _color }}>▲</span></td>
           <td>{_id}</td>
           <td>{this.state.playerInfo.player_status[_id]}</td>
           <td>{this.state.playerInfo.player_type[_id]}</td>
-          <td>{JSON.stringify(this.playerStats[_id])}</td>
+          <td>{this.playerStats[_id] ? this.playerStats[_id].map(n => (<td className='list'> {n} </td>)) : ''}</td>
           <td>{_ap}</td>
-          <td>{_numBlocks}</td>
+          <td>{_numBlocks.map(n => (<td className='list'> {n} </td>))}</td>
           <td>{_numKnights}</td>
           <td>{_points}</td>
         </tr>
@@ -368,19 +367,19 @@ class Game extends React.Component {
     )
   }
 
-  renderGameInfo(){
+  renderGameInfo () {
     const torres = this.state.torres
     const gameInfo = []
     if (this.state.playerInfo.id === -1) {
       gameInfo.push(
         <div>
-          You are observer <span style={{color:'black'}}>▲</span>
+          You are observer <span style={{ color: 'black' }}>▲</span>
         </div>
       )
-    }else{
+    } else {
       gameInfo.push(
         <div>
-          You are the {torres._playerColors[this.state.playerInfo.id]} player <span style={{color:torres._playerColors[this.state.playerInfo.id]}}>▲</span>
+          You are the {torres._playerColors[this.state.playerInfo.id]} player <span style={{ color: torres._playerColors[this.state.playerInfo.id] }}>▲</span>
         </div>
       )
     }
@@ -392,14 +391,14 @@ class Game extends React.Component {
     )
     gameInfo.push(
       <div>
-        Round: {torres._gameRunning ? torres._round + '/' + (torres._phase === 0 ? 0 : torres._numRoundsPerPhase[torres._phase-1]) : '-'}
+        Round: {torres._gameRunning ? torres._round + '/' + (torres._phase === 0 ? 0 : torres._numRoundsPerPhase[torres._phase - 1]) : '-'}
       </div>
     )
     return gameInfo
   }
 
-  renderGameOptions(){
-    let options = []
+  renderGameOptions () {
+    const options = []
     if (this.state.torres._gameRunning) {
       options.push(
       <Button
@@ -473,9 +472,9 @@ class Game extends React.Component {
             })
           }}
         />
-        <Button 
+        <Button
           value='>'
-          onClick={()=> {
+          onClick={() => {
             let stateIndex = this.state.stateIndex
             if (stateIndex >= this.stateHistory.length - 1) {
               stateIndex = -1
@@ -492,21 +491,21 @@ class Game extends React.Component {
     return options
   }
 
-  checkBox(id){
+  checkBox (id) {
     const checkbox = document.getElementById(id)
     this.setState({
       restartAutomatically: checkbox.checked
     })
   }
 
-  test(thing){
+  test (thing) {
     if (thing) return 'true'
     return 'false'
   }
 
-  render() {
-    let torres = this.state.torres
-    if (torres === null ) {
+  render () {
+    const torres = this.state.torres
+    if (torres === null) {
       return (
         'No torres server found. \n Refresh the site after starting the server.'
       )
