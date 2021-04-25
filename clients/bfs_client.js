@@ -3,6 +3,7 @@ const WebSocket = require('ws')
 const events = require('events')
 const Torres = require('../public/javascripts/torres')
 const { performance } = require('perf_hooks')
+const TinyQueue = require('tinyqueue')
 
 const ws = new WebSocket('ws://localhost:3000/')
 const messageParser = new events.EventEmitter()
@@ -29,11 +30,26 @@ async function myMove () {
 }
 
 class State {
-  constructor (moves, gameState) {
+  constructor (moves, gameState, depth = 0) {
     this.moves = moves
     this.gameState = gameState
     this.boardValue = this.getBoardValue()
     this.value = this.getValue()
+    this.depth = depth
+  }
+
+  increaseDepth () {
+    for (let i = 0; i < this.gameState._numPlayers; i++) {
+      let legalMoves = this.gameState.getLegalMoves(this.gameState._activePlayer)
+      while (legalMoves.length && !legalMoves.some(move => move.action === 'turn_end')) {
+        this.gameState.executeMove(legalMoves[0])
+        this.moves.push(legalMoves[0])
+        legalMoves = this.gameState.getLegalMoves(this.gameState._activePlayer)
+      }
+      if (legalMoves.length) this.gameState.executeMove({ action: 'turn_end' })
+      this.moves.push({ action: 'turn_end', note: 'forDepthSkip' })
+    }
+    this.depth += 1
   }
 
   getBoardValue () {
@@ -78,48 +94,91 @@ class Queue {
 
 function bestMoveForTurn (torres) {
   const state = new State([], torres)
+  // return generateAllTurnsDFS(state)
+  // let beamWidth = 0
+  // let maxDepth = 0
+  // switch (myInfo.playerInfo.id) {
+  //   case 0:
+  //     beamWidth = 10000
+  //     maxDepth = 1
+  //     break
+  //   case 1:
+  //     beamWidth = 5000
+  //     maxDepth = 2
+  //     break
+  //   case 2:
+  //     beamWidth = 2500
+  //     maxDepth = 4
+  //     break
+  //   case 3:
+  //     beamWidth = 1000
+  //     maxDepth = 10
+  //     break
+  //   default:
+  //     break
+  // }
   return generateAllTurnsDFS(state)
-  // return generateAllTurnsBFS(state)
 }
 
-function generateAllTurnsBFS (startState) {
+function generateAllTurnsBFS (startState, beamWidth = 5000, maxDepth = 3) {
+  const id = myInfo.playerInfo.id
   const gameDict = {}
-  const states = new Queue()
-  states.enqueue(startState)
-  while (states.length) {
-    // TODO this may be unefficient
-    const currState = states.dequeue()
+  let currWidth = 0
+  let currDepth = 0
+  // pop state with best value
+  let statesQueue = new TinyQueue([startState], (stateA, stateB) => {
+    return stateB.value - stateA.value
+  })
+  while (currDepth < maxDepth) {
+    if (currWidth >= beamWidth || statesQueue.length === 0) {
+      statesQueue = new TinyQueue([], (stateA, stateB) => {
+        return stateB.value - stateA.value
+      })
+      Object.values(gameDict).forEach(state => {
+        if (state.depth === currDepth) {
+          state.increaseDepth()
+          statesQueue.push(state)
+        }
+      })
+      currWidth = 0
+      currDepth += 1
+    }
+    // go one depth deeper
+    const currState = statesQueue.pop()
     const stringGame = JSON.stringify(currState.gameState)
     const stringBoard = JSON.stringify(currState.gameState._board._squares)
-    if (gameDict[stringBoard]) {
-      continue
+    if (!(currState.moves.length && currState.moves[currState.moves.length - 1].note)) {
+      if (gameDict[stringBoard]) {
+        continue
+      }
+      gameDict[stringBoard] = currState
+      currWidth += 1
     }
-    gameDict[stringBoard] = currState
-    const playerId = currState.gameState.activePlayer
-    currState.gameState.getLegalMoves(playerId).forEach(move => {
-      if (move.action === 'turn_end') return
+    currState.gameState.getLegalMovesOrdered(id).forEach(move => {
+      if (move.action === 'turn_end' || (performance.now() - t0 > TIMELIMIT && TIMELIMIT)) return
       const game = Torres.assignInstances(JSON.parse(stringGame))
-      makeMove(game, move, playerId)
+      game.executeMove(move)
       const newMoves = currState.moves.concat([move])
       const newState = new State(newMoves, game)
       if (currState.boardValue > newState.boardValue) return
-      states.enqueue(newState)
+      statesQueue.push(newState)
     })
   }
+  if (!canTurnEnd(startState, id)) {
+    delete gameDict[JSON.stringify(startState.gameState._board._squares)]
+  }
+  console.log(`reached: ${currDepth}/${maxDepth} depth, ${currWidth}/${beamWidth} width`)
   return Object.values(gameDict).reduce(
     (bestState, currState) => bestState.value < currState.value ? currState : bestState).moves.concat([{ action: 'turn_end' }])[0]
 }
-
+let movesMade = 0
 function generateAllTurnsDFS (state) {
   const gameDict = {}
   generateAllTurnsDFSRecursion(state, null, gameDict)
+  console.log(movesMade)
+  movesMade = 0
   const id = myInfo.playerInfo.id
-  // special case if cant do turn end
-  let specialCase = true
-  state.gameState.getLegalMoves(id).forEach(move => {
-    if (move.action === 'turn_end') specialCase = false
-  })
-  if (specialCase) {
+  if (!canTurnEnd(state, id)) {
     delete gameDict[JSON.stringify(state.gameState)]
   }
   const stringMoves = Object.values(gameDict).reduce((bestState, currState) => bestState.value < currState.value ? currState : bestState).moves
@@ -128,18 +187,17 @@ function generateAllTurnsDFS (state) {
 }
 
 function generateAllTurnsDFSRecursion (state, move, gameDict) {
-  const id = myInfo.playerInfo.id
+  movesMade++
   const oldBoardValue = state.getBoardValue()
-  if (move) makeMoveState(state, move, id)
+  if (move) makeMoveState(state, move)
   const newBoardValue = state.getBoardValue()
   if (oldBoardValue <= newBoardValue) {
     const stringGameState = JSON.stringify(state.gameState)
     if (!gameDict[stringGameState]) {
       gameDict[stringGameState] = { moves: JSON.stringify(state.moves), value: state.getValue() }
-      state.gameState.getLegalMovesOrdered(id).forEach(newMove => {
-        if (newMove.action !== 'turn_end' && (performance.now() - t0 < TIMELIMIT || !TIMELIMIT)) {
-          generateAllTurnsDFSRecursion(state, newMove, gameDict)
-        }
+      state.gameState.getLegalMovesOrdered(myInfo.playerInfo.id).forEach(newMove => {
+        if (newMove.action === 'turn_end' || !(performance.now() - t0 < TIMELIMIT || !TIMELIMIT)) return
+        generateAllTurnsDFSRecursion(state, newMove, gameDict)
       })
     }
   }
@@ -169,6 +227,14 @@ function generateAllTurnsDFSIterative (state, move, gameDict) {
     })
     undoMoveStateNoTurnEnd(state, move)
   }
+}
+
+function canTurnEnd (state, id) {
+  let canEnd = false
+  state.gameState.getLegalMoves(id).forEach(move => {
+    if (move.action === 'turn_end') canEnd = true
+  })
+  return canEnd
 }
 
 // get evals
@@ -204,14 +270,12 @@ function makeMoveAndClone (torres, move, playerId) {
 }
 
 function makeMoveState (state, move) {
-  const id = myInfo.playerInfo.id
-  makeMove(state.gameState, move, id)
+  state.gameState.executeMove(move)
   state.moves.push(move)
 }
 
 function undoMoveStateNoTurnEnd (state, move) {
-  const id = myInfo.playerInfo.id
-  undoMoveNoTurnEnd(state.gameState, move, id)
+  state.gameState.undoMove(move)
   state.moves.pop()
 }
 
@@ -255,17 +319,17 @@ function undoMoveNoTurnEnd (torres, move, playerId) {
       break
   }
 }
-
-async function update () {
-  const playerInfo = await new Promise(resolve => {
-    send('status_request', ['player_info'])
-    messageParser.once('player_info_response', (data) => resolve(data))
-  })
+async function update (updatePI = true) {
+  if (updatePI) {
+    myInfo.playerInfo = await new Promise(resolve => {
+      send('status_request', ['player_info'])
+      messageParser.once('player_info_response', (data) => resolve(data))
+    })
+  }
   const torres = await new Promise(resolve => {
     send('status_request', ['game_state'])
     messageParser.once('game_state_response', (data) => resolve(Torres.assignInstances(data)))
   })
-  myInfo.playerInfo = playerInfo
   myInfo.torres = torres
   if (torres.activePlayer === myInfo.playerInfo.id && torres.gameRunning) {
     myMove()
@@ -300,7 +364,9 @@ messageParser.on('game_end', (data) => {
 })
 
 messageParser.on('move_update', (data) => {
-  update()
+  if (data.next_player === myInfo.playerInfo.id) {
+    update(false)
+  }
 })
 
 messageParser.on('move_response', (data) => {
