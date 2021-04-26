@@ -138,6 +138,7 @@ class Torres {
         this._phase = 1
         this._playerToPlaceKing = this._numPlayers - 1
         this._activePlayer = this._playerToPlaceKing
+        this._startingPlayer = 0
         break
       case CHOICE:
         this._board.initCastles() // TODO: let players choose castle placements ?
@@ -147,6 +148,7 @@ class Torres {
         this._phase = 0
         this._activePlayer = 0
         this._playerToPlaceKing = -1
+        this._startingPlayer = 0
         break
       case BALANCED: // TODO: extend for variable board size
         this._board.initCastles()
@@ -155,6 +157,7 @@ class Torres {
         this._phase = 1
         this._playerToPlaceKing = this._numPlayers - 1
         this._activePlayer = this._playerToPlaceKing
+        this._startingPlayer = 0
         break
       case ALL_RANDOM:
         this._board.initCastles()
@@ -163,12 +166,11 @@ class Torres {
         this._phase = 1
         this._playerToPlaceKing = Math.floor(Math.random() * this._numPlayers)
         this._activePlayer = this._playerToPlaceKing
+        this._startingPlayer = Math.floor(Math.random() * this._numPlayers)
         break
       default:
         return false
     }
-
-    this._startingPlayer = 0
     this._gameRunning = true
 
     return true
